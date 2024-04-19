@@ -2,14 +2,14 @@
 
 ## Goal
 
-To familiarise yourself with how to download climate model data of interest ESGF using the `esgpull` tool.
+To familiarise yourself with how to download climate model data of interest from ESGF using the `esgpull` tool.
 
 ## Point of departure
 
-This provides a quick standardised way of downloading climate model data which can then be used in the `KAPy` for processing. This is part of the data preprocessing stage done in `KAPy`.
+This provides a quick standardised way of downloading climate model data which can then be used in the `KAPy` for processing. This is part of the data pre-processing stage done for `KAPy`.
 
 ## Instructions
-1. The first thing you need before starting the download process using `esgpull` is to make sure that `esgpull` is well installed, and configured. You also need to have setup authentification credentials for one of the ESGF nodes where the data will be sourced by the `esgpull` tool. This process is explained in `Tutorial01`.
+1. The first thing you need before starting the download process using `esgpull` is to make sure that `esgpull` is well installed, and configured in your machine. This process is explained in `Tutorial01`. You also need to have setup authentification credentials for one of the ESGF nodes where the data will be sourced by the `esgpull` tool. For example, you can register and get ESGF Data Access through the website https://esgf-data.dkrz.de/projects/esgf-dkrz/. Here, in the process of registering, you will set up your password and get an "OpenId". 
    
 2. Before `esgpull` can be used for data search and download, check if it is set up and configured correctly. The following command that checks the `esgpull` version installed can be used.
    
