@@ -4,4 +4,4 @@ CORDEX-tas-44	tas	CORDEX	AFR-44	resources/CORDEX/tas_GHANA_AFR-44_*	tas	_	5	hist
 ERA5	tas	ERA5	ERA5-grid	resources/ERA5_monthly/t2m_ERA5_monthly.nc	t2m						
 CORDEX-pr-22	pr	CORDEX	AFR-22	resources/CORDEX/pr_GHANA_AFR-22_*	pr	_	5	historical	4,6,7,8,9,3		
 CORDEX-pr-44	pr	CORDEX	AFR-44	resources/CORDEX/pr_GHANA_AFR-44_*	pr	_	5	historical	4,6,7,8,9,3		
-ERA5	pr	ERA5	ERA5-grid	resources/ERA5_monthly/pr_ERA5_monthly.nc	t2m						
+ERA5	pr	ERA5	ERA5-grid	resources/ERA5_monthly/pr_ERA5_monthly.nc	tp						
