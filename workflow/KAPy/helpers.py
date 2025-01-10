@@ -8,6 +8,7 @@ thisPath='outputs/1.primVars/pr_KA-ba_rcp26_EUR-11_CCCma-CanESM2r1i1p1_CLMcom-CC
 import pickle
 import xarray as xr
 import os
+import importlib
 
 
 def readFile(thisPath,format=None):
@@ -32,3 +33,17 @@ def timeslice(this,startYr,endYr):
     timemax = this.time.dt.year <= int(endYr)
     sliced = this.sel(time=timemin & timemax)
     return sliced
+
+def getExternalFunction(scriptPath,functionName):
+    """
+    Retrieves a function from an external file 
+
+    Args:
+        scriptPath (_type_): Path to the script file containing the function
+        functionName (_type_): Name of the function to retrieve
+    """
+    thisSpec = importlib.util.spec_from_file_location("customScript", scriptPath)
+    thisModule = importlib.util.module_from_spec(thisSpec)
+    thisSpec.loader.exec_module(thisModule)
+    thisFn = getattr(thisModule, functionName)
+    return(thisFn)

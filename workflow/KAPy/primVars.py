@@ -20,16 +20,51 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import pickle
 import sys
-import importlib
 from cdo import Cdo
-
+from . import helpers 
 
 def buildPrimVar(config, inFiles, outFile, inpID):
     """
-    Build the data object
+    Build primary variables
 
-    Build the set of input files into a single xarray-based dataset object
-    and write it out, either as a NetCDF file or as a pickle.
+    Controls the import of data and generation of primary variables
+
+    Args:
+        config (_type_): Configuration object
+        inFiles (_type_): List of input files
+        outFile (_type_): Output file
+        inpID (_type_): Input item ID
+    """
+    # Get input configuration
+    thisInp = config["inputs"][inpID]
+
+    # If an import function is defined, use that. Otherwise use the default
+    if thisInp["importScriptPath"]!='':
+        imptFn=helpers.getExternalFunction(thisInp["importScriptPath"], thisInp["importScriptFunction"])
+        da = imptFn(config, inFiles, inpID)  
+    else:
+        da= defaultImport(config, inFiles, inpID)
+
+    # Write the dataset object to disk, depending on the configuration
+    if config['processing']['picklePrimaryVariables']:
+        with open(outFile[0],'wb') as f:
+            pickle.dump(da,f,protocol=-1)
+    else:
+        da.to_netcdf(outFile[0])
+
+
+
+
+def defaultImport(config, inFiles, inpID):
+    """
+    Default import function
+    
+    Builds a set of input files into a single xarray-based dataset object
+
+    Args:
+        config (_type_): Configuration object
+        inFiles (_type_): List of input files
+        inpID (_type_): ID of the input files
     """
     # Get input configuration
     thisInp = config["inputs"][inpID]
@@ -99,19 +134,5 @@ def buildPrimVar(config, inFiles, outFile, inpID):
         #problem
         sys.exit(f"Unsupported cutout option '{config['cutouts']['method']}'.")
 
-    # # Apply additional preprocessing scripts
-    # if thisInp["importScriptPath"]!='':
-    #     thisSpec = importlib.util.spec_from_file_location(
-    #         "customScript", thisInp["importScriptPath"]
-    #     )
-    #     thisModule = importlib.util.module_from_spec(thisSpec)
-    #     thisSpec.loader.exec_module(thisModule)
-    #     ppFn = getattr(thisModule, thisInp["importScriptFunction"])
-    #     da = ppFn(da)  # Assume no input arguments
+    return(da)
 
-    # Write the dataset object to disk, depending on the configuration
-    if config['processing']['picklePrimaryVariables']:
-        with open(outFile[0],'wb') as f:
-            pickle.dump(da,f,protocol=-1)
-    else:
-        da.to_netcdf(outFile[0])
