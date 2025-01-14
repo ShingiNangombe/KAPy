@@ -11,7 +11,7 @@
   - **`indicators`** *(string, required)*: Path to indicator configuration table, relative to working directory. See [indicators.md](indicators.md) for more detail.
   - **`periods`** *(string, required)*: Path to period configuration table, relative to working directory. See [periods.md](periods.md) for more detail.
   - **`seasons`** *(string, required)*: Path to season configuration table, relative to working directory. See [seasons.md](seasons.md) for more detail.
-- **`dirs`** *(object)*: Directories for storing output and intermediate files. Can be specified as either absolute paths, or relative to the working directory. See the [KAPy concepts](../KAPy_concepts.md) documentation for a more detailed description of these items. Cannot contain additional properties.
+- **`dirs`** *(object, required)*: Directories for storing output and intermediate files. Can be specified as either absolute paths, or relative to the working directory. See the [KAPy concepts](../KAPy_concepts.md) documentation for a more detailed description of these items. Cannot contain additional properties.
   - **`variables`** *(string, required)*: Directory for storing variables.
   - **`calibration`** *(string, required)*: Directory for storing calibrated variables.
   - **`indicators`** *(string, required)*: Directory for storing indicators.
@@ -19,7 +19,7 @@
   - **`ensstats`** *(string, required)*: Directory for storing ensemble statistics.
   - **`arealstats`** *(string, required)*: Directory for storing statistics calculated over areas.
   - **`plots`** *(string, required)*: Directory for storing output plots.
-- **`arealstats`** *(object)*: Cannot contain additional properties.
+- **`arealstats`** *(object, required)*: Cannot contain additional properties.
   - **`useAreaWeighting`** *(boolean, required)*: Use area-weighting when calculating averages over a polygon or area. Nearly all climate data is presented on grids where the area of the pixels is not constant, but changes in space - for example, on a regular lat-lon grid, the pixels get smaller towards the poles. When this option is configured, the CDO `gridarea` operator is used to calculate the area of each cell, and weightings applied to the calculation of area statistics accordingly. Requires that CDO can calculate the cell area - otherwise, it is recommended to disable this option manually.
   - **`shapefile`** *(['string', 'null'], required)*: Path to shapefile to be used for defining areas. When the path is undefined, averages are calculated across the entire domain. The path should point to the .shp file.
   - **`idColumn`** *(['string', 'null'], required)*: Name of the column in the above shapefile to be used as a unique identifier code for the area.
@@ -33,7 +33,7 @@
       - **`xmax`** *(number, required)*: Eastern boundary of cutout box.
       - **`ymin`** *(number, required)*: Southern boundary of cutout box.
       - **`ymax`** *(number, required)*: Northern boundary of cutout box.
-- **`ensembles`** *(object)*: Specify the percentiles [0-100] calculated from the ensemble. We allow three values, corresponding to the upper and lower confidence limits, and the central value. Cannot contain additional properties.
+- **`ensembles`** *(object, required)*: Specify the percentiles [0-100] calculated from the ensemble. We allow three values, corresponding to the upper and lower confidence limits, and the central value. Cannot contain additional properties.
   - **`upperPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
   - **`centralPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
   - **`lowerPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
@@ -45,5 +45,5 @@
       - **`regriddingEngine`** *(string, required)*: Must be one of: `["cdo"]`.
       - **`gridName`** *(string, required)*: String giving the name of the grid to be used in regridding filenames.
       - **`cdoGriddes`** *(string, required)*: CDO grid descriptor, specifying the output grid. Following the way that CDO works, this can either be a path to a grid descriptor file, or one of the predefined grids e.g. `global_1`. For more information see the CDO documentation, specifically [section 1.5](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-280001.5) about horizontal grids, [section 2.12](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-6900002.12] about interpolation and [Appendix D](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-995000D] for examples of grid descriptors.
-- **`processing`** *(object)*: Cannot contain additional properties.
+- **`processing`** *(object, required)*: Cannot contain additional properties.
   - **`picklePrimaryVariables`** *(boolean, required)*: Should the the primary variables be stored as 'pickled' xarray objects (`True`) or written out to disk as NetCDF files (`False`).
