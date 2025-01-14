@@ -29,7 +29,7 @@ wf=KAPy.getWorkflow(config)
 def primaryVar_singular_rule(thisID):
     thisVarName=config['inputs'][thisID]['varID']
     rule:  
-        name: f'{thisID}_files'
+        name: f'primaryVar_{thisID}'
         output:
             os.path.join(outDirs['variables'],
                          f"{thisVarName}",
@@ -69,7 +69,7 @@ rule primaryVars:
 def secVar_singular_rule(thisID):
     thisVar=config['secondaryVars'][thisID]
     rule:  
-        name: f'{thisID}_files'
+        name: f'secondaryVar_{thisID}'
         output:
             os.path.join(outDirs['variables'],
                          f"{thisVar['outputVars']}",
@@ -106,7 +106,7 @@ rule secondaryVars:
 def calibration_singular_rule(thisID):
     thisCalVar=config['calibration'][thisID]['outVariable']
     rule:  
-        name: f'{thisID}_files'
+        name: f'calibration_{thisID}'
         output:
             os.path.join(outDirs['calibration'],
                         thisCalVar,
@@ -150,7 +150,7 @@ if 'calibratedVars' in wf:
 def ind_singular_rule(thisID):
     thisInd=config['indicators'][thisID]
     rule:  
-        name: f'{thisID}_files'
+        name: f'indicator_{thisID}'
         output:
             os.path.join(outDirs['indicators'],
                          f"{thisID}",
