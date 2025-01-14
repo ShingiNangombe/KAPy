@@ -231,7 +231,7 @@ def getWorkflow(config):
 
             # Add to output dict
             for idx, rw in calTbl.iterrows():
-                calDict[rw['outFile']] = {'histSim':rw['path'],'ref':refDict['path']}
+                calDict[thisCal['id']]= {rw['outFile'] : {'histsim':rw['path'],'ref':refDict['path']}}
 
             # Add to variable palette
             varPal = pd.concat([varPal,

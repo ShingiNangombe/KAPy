@@ -102,26 +102,45 @@ rule secondaryVars:
         
         
 # Calibration -------------------
-# Aka bias-correction. Only run if we need to
-if 'calibratedVars' in wf:
-    rule calibration:
-        input:
-            list(wf['calibratedVars'].keys())
-
-    rule calibration_file:
+# Aka bias-correction. 
+def calibration_singular_rule(thisID):
+    thisCalVar=config['calibration'][thisID]['outVariable']
+    rule:  
+        name: f'{thisID}_files'
         output:
-            os.path.join(outDirs['calibration'],"{varID}","{fname}")
+            os.path.join(outDirs['calibration'],
+                        thisCalVar,
+                        "{fname}")
         input:
             unpack(lambda wildcards:
-                wf['calibratedVars'][os.path.join(outDirs['calibration'],
-                                      wildcards.varID,
-                                      wildcards.fname)])
+                wf['calibratedVars'][thisID][os.path.join(outDirs['calibration'],
+                                                            thisCalVar,
+                                                            wildcards.fname)])
         run:
             KAPy.calibrate(config,
-                           histSimFile=input.histSim,
-                           refFile=input.ref,
-                           outFile=output,
-                           thisCal=wildcards.varID)
+                            histsimFile=input.histsim,
+                            refFile=input.ref,
+                            outFile=output,
+                            thisCal=thisID)
+
+#Plural rule
+def calibration_plural_rule(thisID):
+    rule:
+        name: f'{thisID}'
+        input:
+            list(wf['calibratedVars'][thisID].keys())
+
+#Only generate rules if we need to
+if 'calibratedVars' in wf:
+    for calID in wf['calibratedVars'].keys():
+        calibration_singular_rule(calID)
+        calibration_plural_rule(calID)
+
+    #Run all calibration    
+    rule calibration:
+        input:
+            [list(thisCal.keys()) for thisCal in wf['calibratedVars'].values()]
+            
 
 # Indicators ---------------------------------
 # Create a loop over the indicators that defines the singular and plural rules

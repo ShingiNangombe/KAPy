@@ -18,7 +18,7 @@ from cdo import Cdo
 import tempfile
 from . import helpers
 
-def calibrate(config,histSimFile,refFile,outFile, thisCal):
+def calibrate(config,histsimFile,refFile,outFile, thisCal):
     #Setup
     calCfg=config['calibration'][thisCal]
     cdo=Cdo(tempdir='/dmidata/projects/klimaatlas/CLIM4CITIES/tmp/')
@@ -29,7 +29,7 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
     # Regrid histsim using CDO nearest neighbour interpolation. We initially did this
     # using the grid descriptor, but it works much better if you use the input file
     # directly, to ensure that all necessary auxiliary information is included.
-    histsimNNFname=cdo.remapnn(refFile,input=histSimFile)
+    histsimNNFname=cdo.remapnn(refFile,input=histsimFile)
     histsimNN=helpers.readFile(histsimNNFname,format=".nc").compute()
 
     #Now import reference data - enforce loading, to avoid dask issues
