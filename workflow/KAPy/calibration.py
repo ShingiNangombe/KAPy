@@ -62,7 +62,10 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
               "cmethods-delta":"delta_method",
               "cmethods-quantile":'quantile_mapping',
               "cmethods-quantile-delta":'quantile_delta_mapping'}
-    
+    if calCfg['grouping']=="none":
+        grouping="time"
+    else:
+        grouping="time."+calCfg['grouping']
 
     #Apply method
     if calCfg['method'] in cmethodsAdj.keys():
@@ -85,7 +88,7 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
         from xclim.sdba import EmpiricalQuantileMapping
         EQM = EmpiricalQuantileMapping.train(refDatCP, 
                                                  histNN, 
-                                                 group="time."+calCfg['grouping'],
+                                                 group=grouping,
                                                  **calCfg['additionalArgs'])
         res = EQM.adjust(histSimNN, extrapolation="constant", interp="nearest")
 
@@ -94,7 +97,7 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
         from xclim.sdba import DetrendedQuantileMapping
         DQM = DetrendedQuantileMapping.train(refDatCP, 
                                                  histNN, 
-                                                 group="time."+calCfg['grouping'],
+                                                 group=grouping,
                                                  **calCfg['additionalArgs'])
         res = DQM.adjust(histSimNN, extrapolation="constant", interp="nearest")
 
@@ -103,7 +106,7 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
         from xclim.sdba.adjustment import Scaling
         this = Scaling.train(refDatCP, 
                                    histNN,
-                                   group="time."+calCfg['grouping'],
+                                   group=grouping,
                                    **calCfg['additionalArgs'])
         res = this.adjust(histSimNN, interp="nearest")
 

@@ -60,10 +60,10 @@
       "type": "string",
       "description": "Apply calibration independently of each time grouping selected here.",
       "enum": [
+        "none",
         "dayofyear",
         "month",
-        "season",
-        "none"]
+        "season"]
     },
     "additionalArgs": {
       "type": "string",
