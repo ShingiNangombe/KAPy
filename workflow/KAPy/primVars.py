@@ -44,11 +44,12 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 		da= defaultImport(config, inFiles, inpID)
 		#Apply cutout functionality
 		if config["cutouts"]["method"] == "lonlatbox":
-			da=cutout_lonlat(config["cutouts"]["xmin"],
+			da=cutout_lonlat(da,
+					config["cutouts"]["xmin"],
 					config["cutouts"]["xmax"],
 					config["cutouts"]["ymin"],
 					config["cutouts"]["ymax"],
-					inpID)
+					thisInp["varID"])
 
 	else:
 		#Use a custom import
@@ -118,7 +119,7 @@ def defaultImport(config, inFiles, inpID):
 
 
 
-def cutout_lonlat(xmin,xmax,ymin,ymax,varID):
+def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID):
 	"""
 	Apply cutout based on lonlat
 
@@ -144,7 +145,7 @@ def cutout_lonlat(xmin,xmax,ymin,ymax,varID):
 	# Extract first time step. This avoids having to work
 	# with the entire dataset.
 	# ASSERT: there is a time dimension called "time"
-	firstTS=da.isel(time=0)
+	firstTS=thisDat.isel(time=0)
 
 	# Do cutouts using cdo sellonlatbox. Make sure that we
 	# return a dataarray and not a dataset
@@ -154,7 +155,7 @@ def cutout_lonlat(xmin,xmax,ymin,ymax,varID):
 								  returnXArray=varID)
 	
 	# Apply masking to data array object
-	da=da.where(cutoutMask.notnull(),drop=True)
+	da=thisDat.where(cutoutMask.notnull(),drop=True)
 
 	# Done
 	return(da)
