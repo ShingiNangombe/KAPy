@@ -2,49 +2,48 @@
 #Setup for debugging with VS code
 import os
 print(os.getcwd())
-import KAPy
-os.chdir("KAPy")
 import helpers as helpers
+os.chdir("..")
+import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
-histSimFile='./results/1.variables/tas/tas_CORDEX_AFR-22_rcp85_MPI-M-MPI-ESM-LR_r1i1p1_CLMcom-KIT-CCLM5-0-15_v1_mon_AFR-22.nc'
-refFile="./results/1.variables/tas/tas_ERA5_ERA5-grid_no-expt_t2m_ERA5_monthly.nc"
-thisCal='tas-eqm'
+histsimFile='./outputs/1.variables/tas/tas_CORDEX_EUR-11_rcp85_IPSL-IPSL-CM5A-MR_r1i1p1_DMI-HIRHAM5_v1.nc'
+refFile="./outputs/1.variables/tas/tas_KGDK_KGDK_no-expt_tas_klimagrid_2023.nc"
+thisCal='tas-cal'
 %matplotlib qt
 import matplotlib.pyplot as plt
 """
 
-import xarray as xr
 from cdo import Cdo
+import tempfile
 from . import helpers
 
 def calibrate(config,histSimFile,refFile,outFile, thisCal):
-    # We choose to follow here the Xclim typology of ref / hist / sim, with the
-    # assumption that the hist and sim part are contained in the same file
-    #Import files - enforce loading, to avoid dask issues
-    histSimDat=helpers.readFile(histSimFile).compute()
-    refDat=helpers.readFile(refFile).compute()
+    #Setup
     calCfg=config['calibration'][thisCal]
+    cdo=Cdo(tempdir='/dmidata/projects/klimaatlas/CLIM4CITIES/tmp/')
 
-    # Regrid calibration data to the refData set 
-    # First a write a single time slice of the reference data out, to use as the 
-    # grid descriptor for the reference data set, then regrid using
-    # CDO nearest neighbour interpolation
-    cdo=Cdo()
-    refGriddes=cdo.seltimestep('1/1',input=refDat)
-    histSimNNFname=cdo.remapnn(refGriddes,input=histSimDat)
-    histSimNN=helpers.readFile(histSimNNFname,format=".nc").compute()
+    # We choose to follow here the Xclim typology of ref / hist / sim, with the
+    # assumption that the hist and sim part are contained in the same file ("histsim)")
+
+    # Regrid histsim using CDO nearest neighbour interpolation. We initially did this
+    # using the grid descriptor, but it works much better if you use the input file
+    # directly, to ensure that all necessary auxiliary information is included.
+    histsimNNFname=cdo.remapnn(refFile,input=histSimFile)
+    histsimNN=helpers.readFile(histsimNNFname,format=".nc").compute()
+
+    #Now import reference data - enforce loading, to avoid dask issues
+    refDat=helpers.readFile(refFile).compute()
 
     #Truncate time slice to the common calibration period (CP). Ensure synchronisation
     #between times and grids using nearest neighbour interpolation of
     #the sim data to the obs data
-    histNN=helpers.timeslice(histSimNN,
+    histsimNNCP=helpers.timeslice(histsimNN,
                      calCfg['calPeriodStart'],
                      calCfg['calPeriodEnd'])
     refDatCP=helpers.timeslice(refDat,
                      calCfg['calPeriodStart'],
                      calCfg['calPeriodEnd'])
-
 
     #Match calendars between observations and simulations
     #Note that here we have chosen here to align on year when converting to/from
@@ -52,11 +51,11 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
     #under the assumption that we are primarily going to be working with daily data.
     #See here for details:
     #https://docs.xarray.dev/en/stable/generated/xarray.Dataset.convert_calendar.html
-    histNN=histNN.convert_calendar(refDatCP.time.dt.calendar,
+    histsimNNCP=histsimNNCP.convert_calendar(refDatCP.time.dt.calendar,
                                    use_cftime=True,
                                    align_on="year")                     
 
-    #Setup mapping to methods
+    #Setup mapping to methods and grouping
     cmethodsAdj={"cmethods-linear":'linear_scaling',
               "cmethods-variance":'variance_scaling',
               "cmethods-delta":"delta_method",
@@ -73,8 +72,8 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
         from cmethods import adjust        #Use the adjust function from python cmethods
         res=adjust(method=cmethodsAdj[calCfg['method']],
                     obs=refDatCP,
-                    simh=histNN,
-                    simp=histSimNN,
+                    simh=histsimNNCP,
+                    simp=histsimNN,
                     group="time."+calCfg['grouping'],
                     **calCfg['additionalArgs'])
 
@@ -87,28 +86,28 @@ def calibrate(config,histSimFile,refFile,outFile, thisCal):
         #Empirical quantile mapping -----------------------------
         from xclim.sdba import EmpiricalQuantileMapping
         EQM = EmpiricalQuantileMapping.train(refDatCP, 
-                                                 histNN, 
+                                                 histsimNNCP, 
                                                  group=grouping,
                                                  **calCfg['additionalArgs'])
-        res = EQM.adjust(histSimNN, extrapolation="constant", interp="nearest")
+        res = EQM.adjust(histsimNN, extrapolation="constant", interp="nearest")
 
     elif calCfg['method']=="xclim-dqm":
         #Detrended quantile mapping -----------------------------
         from xclim.sdba import DetrendedQuantileMapping
         DQM = DetrendedQuantileMapping.train(refDatCP, 
-                                                 histNN, 
+                                                 histsimNNCP, 
                                                  group=grouping,
                                                  **calCfg['additionalArgs'])
-        res = DQM.adjust(histSimNN, extrapolation="constant", interp="nearest")
+        res = DQM.adjust(histsimNN, extrapolation="constant", interp="nearest")
 
     elif calCfg['method']=="xclim-scaling":
         #Xclim - Scaling--------------------------------
         from xclim.sdba.adjustment import Scaling
         this = Scaling.train(refDatCP, 
-                                   histNN,
+                                   histsimNNCP,
                                    group=grouping,
                                    **calCfg['additionalArgs'])
-        res = this.adjust(histSimNN, interp="nearest")
+        res = this.adjust(histsimNN, interp="nearest")
 
 
     elif calCfg['method']=="custom":

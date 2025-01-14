@@ -17,8 +17,21 @@ def readFile(thisPath,format=None):
     if format==None:
         format = os.path.splitext(os.path.basename(thisPath))[1]
     if format == ".nc":
-        thisDat = xr.open_dataarray(thisPath,
+        #Each file should only contain one variable, but we also need
+        #to handle the situation where there is CRS information stored
+        #as a variable. Hence, we open as a dataset, and then proceed
+        #from there
+        thisDS = xr.open_dataset(thisPath,
                                     use_cftime=True)
+        #Check for more than one non-CRS value
+        if ('crs' in thisDS.data_vars) & (len(list(thisDS.data_vars))==2):
+            thisVar=[k for k in thisDS.data_vars if k != "crs"]
+            thisDat=thisDS[thisVar[0]]
+        elif (len(list(thisDS.data_vars))==1):
+            thisDat=thisDS[list(thisDS.data_vars)[0]]
+        else:
+            raise ValueError(f"{thisPath} contains more than one (non-CRS) variable. " +
+                       f"The variables are {list(thisDS.data_vars)}")
     elif format == ".pkl":  # Read pickle
         with open(thisPath, "rb") as f:
             thisDat = pickle.load(f)
@@ -33,6 +46,7 @@ def timeslice(this,startYr,endYr):
     timemax = this.time.dt.year <= int(endYr)
     sliced = this.sel(time=timemin & timemax)
     return sliced
+
 
 def getExternalFunction(scriptPath,functionName):
     """
