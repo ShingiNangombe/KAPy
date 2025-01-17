@@ -279,6 +279,10 @@ def getWorkflow(config):
             os.path.join(outDirs["regridded"], rw["indID"], rw["rgFname"])
             for idx, rw in rgTbl.iterrows()
         ]
+
+        #Check for the presence of duplicates in rgPath. Fail if found
+        if len(rgTbl['rgPath'].unique()) != len(rgTbl):
+            raise ValueError("Duplicate filenames will result from the regridding step. Please recheck configuration.")
         
         # Extract the dict
         rgDict = {rw["rgPath"]: [rw["indPath"]] for idx, rw in rgTbl.iterrows()}
