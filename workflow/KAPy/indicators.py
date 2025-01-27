@@ -8,7 +8,7 @@ import KAPy
 os.chdir("..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-indID='201'
+indID='102'
 outFile=[next(iter(wf['indicators'][indID]))]
 inFile=wf['indicators'][indID][outFile[0]]
 import matplotlib.pyplot as plt
@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 """
 
 import xarray as xr
+import xclim as xc
 import numpy as np
-import pandas as pd
 import sys
 import cftime
 from . import helpers 
@@ -35,6 +35,27 @@ def calculateIndicators(config, inFile, outFile, indID):
     theseMonths = config["seasons"][thisInd["season"]]["months"]
     datSeason = thisDat.sel(time=np.isin(thisDat.time.dt.month, theseMonths))
 
+    #Internal function to choose and apply the indicator statistic
+    def applyStat(d,thisStat,args):
+        if thisStat=="mean":
+            res = d.mean("time", keep_attrs=True)
+        elif thisStat=="count":
+            #Check input arguments
+            if not (('op' in args) & ('threshold' in args)):
+                raise ValueError("The 'additionalArgs' field must contain both 'op' and 'threshold' when using the 'count' statistic. ")
+            try:
+                num = float(args['threshold'])
+            except ValueError:
+                raise ValueError(f"Cannot convert 'threshold' value in 'additionalArgs' to a float. 'Threshold' string value: {args['threshold']}")
+            #Do count
+            comp = xc.indices.generic.compare(left=d,
+                                             op=args['op'],
+                                             right=float(args['threshold']))
+            res=comp.sum(dim='time')
+        else:
+            raise ValueError(f"Unknown indicator statistic, '{thisStat}'")
+        return(res)
+          
     # Time binning over periods
     if thisInd["time_binning"] == "periods":
         slices = []
@@ -49,10 +70,10 @@ def calculateIndicators(config, inFile, outFile, indID):
                 res=res.drop_vars("time")
                 res.data[:] = np.nan
             # Else apply the operator
-            elif thisInd["statistic"] == "mean":
-                res = datPeriodSeason.mean("time", keep_attrs=True)
             else:
-                sys.exit('Unknown indicator statistic, "' + ind["statistic"] + '"')
+                res=applyStat(datPeriodSeason,
+                            thisInd["statistic"],
+                            thisInd["additionalArgs"])
             # Tidy output
             res["periodID"] = thisPeriod["id"]
             slices.append(res)
@@ -75,10 +96,9 @@ def calculateIndicators(config, inFile, outFile, indID):
             sys.exit("Shouldn't be here")
 
         # Apply the operator
-        if thisInd["statistic"] == "mean":
-            dout = datGroupped.mean(["time"], keep_attrs=True)
-        else:
-            sys.exit('Unknown indicator statistic, "' + thisInd["statistic"] + '"')
+        dout=applyStat(datGroupped,
+                        thisInd["statistic"],
+                        thisInd["additionalArgs"])
 
         # Round time to the middle of the month. This ensures that everything
         # has an identical datetime, regardless of the calendar being used.
@@ -96,7 +116,7 @@ def calculateIndicators(config, inFile, outFile, indID):
     dout.attrs = {}
     for thiskey in thisInd.keys():
         if thiskey != "files":
-            dout.attrs[thiskey] = thisInd[thiskey]
+            dout.attrs[thiskey] = str(thisInd[thiskey])
 
     # Write out
     dout.to_netcdf(outFile[0])

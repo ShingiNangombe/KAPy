@@ -62,19 +62,26 @@ def validateConfig(config):
     # Validate each table in turn. The validation approach used
     # is defined in the following table
     tabularCfg = {
-        "indicators": {"listCols": [], "dictCols": [], "schema": "indicators"},
-        "inputs": {"listCols": ['ensMemberFields'], "dictCols": [], "schema": "inputs"},
-        "periods": {"listCols": [], "dictCols": [], "schema": "periods"},
-        "seasons": {"listCols": ["months"], "dictCols": [], "schema": "seasons"},
-        "calibration": {"listCols": [], 
-                        "dictCols": ["additionalArgs"],
-                        "schema": "calibration"},
+        "inputs": {"listCols": ['ensMemberFields'], 
+                   "dictCols": [], 
+                   "schema": "inputs"},
+        "periods": {"listCols": [], 
+                    "dictCols": [], 
+                    "schema": "periods"},
+        "seasons": {"listCols": ["months"], 
+                    "dictCols": [], 
+                    "schema": "seasons"},
         "secondaryVars": {
             "listCols": ["inputVars", "outputVars"],
             "dictCols": ["additionalArgs"],
-            "schema": "derivedVars",
+            "schema": "derivedVars"},
+        "calibration": {"listCols": [], 
+                        "dictCols": ["additionalArgs"],
+                        "schema": "calibration"},
+        "indicators": {"listCols": [], 
+                       "dictCols": ["additionalArgs"], 
+                       "schema": "indicators"}
         }
-    }
     for thisTblKey, theseVals in tabularCfg.items():
         # Load the variables that are defined as tabular configurations (if they exist)
         if not thisTblKey in config["configurationTables"]:

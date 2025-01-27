@@ -9,8 +9,11 @@
     "units",
     "variables",
     "season",
+    "time_binning",
     "statistic",
-    "time_binning"
+    "additionalArgs",
+    "customScriptPath",
+    "customScriptFunction"
   ],
   "additionalProperties": false,
   "properties": {
@@ -47,13 +50,6 @@
       "description": "Season IDs over which the indicator is to be calculated. IDs should match those in the [seasons configuration](seasons.md) table. In addition, `all` selects all seasons. Currently, only one season is supported - this will be modified in the future - see issue #36 https://github.com/Klimaatlas/KAPy/issues/36",
       "type": "string"
     },
-    "statistic": {
-      "description": "Metric to be used to calculate the indicator.",
-      "enum": [
-        "mean"
-      ],
-      "type": "string"
-    },
     "time_binning": {
       "description": "Time bins over which indicators are calculated. In the case of choosing `periods`, the indicator will be calculated for all periods defined in the [periods configuration](periods.md) table.",
       "type": "string",
@@ -62,6 +58,31 @@
         "years",
         "months"
       ]
+    },
+    "statistic": {
+      "description": "Statistic to be used to calculate the indicator. KAPy has three basic types of indicators built in. 1) `mean` calculates an average across the period. 2)`count` counts the number of days in the period above or below a threshold. Additional parameters must be supplied via the `additionalArgs` field: `threshold` is the threshold value, and `op` is the comparison operator - one of `>`,`gt`,`<`,`lt`,  `>=`, `ge`, `<=` or `le`.  3) `custom` calls the function defined in `customScriptPath` and `customScriptFunction` and utilised arguments supplied as a dictionary in `additionalArgs`.",
+      "type": "string",
+      "enum": [
+        "custom",
+        "mean",
+        "count"
+        ]
+    },
+    "additionalArgs": {
+      "type": "string",
+      "nullable": true,
+      "description": "Additional arbitrary arguments specified as a dict to be passed to the function via keyword arguments. e.g. `{'threshold':'25','op':'gt'}`. If no there are no additional parameters. an empty dict should be supplied i.e. `{}`"
+    },
+    "customScriptPath": {
+      "type": "string",
+      "nullable": true,
+      "description": "If `statistic` is set to `custom`, this field is used to identify the path to a custom script, if applicable."
+    },
+    "customScriptFunction": {
+      "type": "string",
+      "nullable": true,
+      "description": "Name of the function in `customScriptPath` to be used for calculating the indicator,  if applicable."
     }
+
   }
 }
