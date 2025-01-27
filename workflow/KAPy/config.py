@@ -85,7 +85,7 @@ def validateConfig(config):
     for thisTblKey, theseVals in tabularCfg.items():
         # Load the variables that are defined as tabular configurations (if they exist)
         if not thisTblKey in config["configurationTables"]:
-            break
+            continue
         thisCfgFile = config["configurationTables"][thisTblKey]
         thisTbl = pd.read_csv(thisCfgFile, sep="\t", 
                               comment="#",
