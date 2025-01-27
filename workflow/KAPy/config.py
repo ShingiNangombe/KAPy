@@ -106,10 +106,7 @@ def validateConfig(config):
             try:
                 thisTbl[col] = [ast.literal_eval(x) for x in thisTbl[col]]
             except (SyntaxError, ValueError) as e:
-                print(
-                    f"Error occurred in parsing column '{col}' in '{thisCfgFile}' : {e}"
-                )
-                sys.exit()
+                raise ValueError (f"Error occurred in parsing column '{col}' in '{thisCfgFile}' : {e}")
         # Force id column to be a string. Set to as the index so it can be used as the key
         thisTbl["id"] = [str(x) for x in thisTbl["id"]]
         thisTbl = thisTbl.set_index("id", drop=False)
