@@ -7,14 +7,17 @@ os.chdir("..")
 import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
-histsimFile='./outputs/1.variables/tas/tas_CORDEX_EUR-11_rcp85_IPSL-IPSL-CM5A-MR_r1i1p1_DMI-HIRHAM5_v1.nc'
-refFile="outputs/1.variables/tas/tas_DANRA_DANRA_no-expt_t2m_DANRA_2023.nc"
-thisCal='tas-meanadj-DANRA'
+histsimFile='./outputs/1.variables/tas/tas_CORDEX_EUR-11_rcp85_NCC-NorESM1-M_r1i1p1_SMHI-RCA4_v1.nc'
+refFile="./outputs/1.variables/tas/tas_KGDK_KGDK_no-expt_tasobs_1989-2019_new.nc"
+thisCal='tas-xclim-scaling'
+import matplotlib.pyplot as plt
+%matplotlib inline
 """
 
 import xarray as xr
 import tempfile
 import xesmf as xe
+import json
 from . import helpers
 #from dask.distributed import Client
 
@@ -63,7 +66,7 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     histsimNN.to_netcdf(regrdFname,
               encoding={histsimNN.name:{'chunksizes':(256,16,16)}})
 
-    #Now reopen histsimNN
+    #Now reopen histsimNN with a time-oriented chunking
     histsimNN=helpers.readFile(regrdFname,chunks={'time':-1}).unify_chunks()
 
     # Prepare combined dataset ------------------------------
@@ -85,6 +88,7 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     combDS2=xr.Dataset({'histsim':histsimNN.unify_chunks(),
                         'ref':refdsCPtime.unify_chunks()})
     combDS=combDS2.unify_chunks()
+
     #Parallelised calibration functions ------------------------------
     def calibrateThisChunk(chnk,calCfg):
         #Debug
@@ -178,7 +182,7 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
         return resTrans
     
     # Do calibration----------------------
-    # Apply function in a parallelised manner
+    # Apply function in a parallelised manner. 
     out=xr.map_blocks(func=calibrateThisChunk,
                         obj=combDS,
                         kwargs={'calCfg':calCfg},
@@ -186,10 +190,10 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
 
     #Finishing touches
     out2=out.rename(calCfg['outVariable'])   #Return object, rather than inline modification
+    out2 = out2.assign_attrs({"calibration_args": json.dumps(calCfg)})
 
     #Now write, setting the chunk sizes and compression
     out2.to_netcdf(outFile[0],
                 encoding={calCfg['outVariable']:{'chunksizes':[256,16,16],
                             'zlib': True,
                             'complevel':1}})
-
