@@ -59,7 +59,8 @@
                 "regridded",
                 "ensstats",
                 "arealstats",
-                "plots"
+                "plots",
+                "tempDir"
             ],
             "additionalProperties": false,
             "properties": {
@@ -89,6 +90,10 @@
                 },
                 "plots": {
                     "description": "Directory for storing output plots.",
+                    "type": "string"
+                },
+                "tempDir": {
+                    "description": "Temporary directory to be used for scratch files",
                     "type": "string"
                 }
             }

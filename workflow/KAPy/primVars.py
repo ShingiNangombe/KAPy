@@ -21,51 +21,10 @@ import xarray as xr
 import pickle
 import sys
 from cdo import Cdo
+import numpy as np
 from . import helpers 
 
-def buildPrimVar(config, inFiles, outFile, inpID):
-	"""
-	Build primary variables
-
-	Controls the import of data and generation of primary variables
-
-	Args:
-		config (_type_): Configuration object
-		inFiles (_type_): List of input files
-		outFile (_type_): Output file
-		inpID (_type_): Input item ID
-	"""
-	# Get input configuration
-	thisInp = config["inputs"][inpID]
-
-	# If an import function is defined, use that. Otherwise use the default
-	if thisInp["importScriptPath"]=='':
-		#Use default import
-		da= defaultImport(config, inFiles, inpID)
-		#Apply cutout functionality
-		if config["cutouts"]["method"] == "lonlatbox":
-			da=cutout_lonlat(da,
-					config["cutouts"]["xmin"],
-					config["cutouts"]["xmax"],
-					config["cutouts"]["ymin"],
-					config["cutouts"]["ymax"],
-					thisInp["varID"])
-
-	else:
-		#Use a custom import
-		imptFn=helpers.getExternalFunction(thisInp["importScriptPath"], thisInp["importScriptFunction"])
-		da = imptFn(config, inFiles, inpID)  
-
-	# Write the dataset object to disk, depending on the configuration
-	if config['processing']['picklePrimaryVariables']:
-		with open(outFile[0],'wb') as f:
-			pickle.dump(da,f,protocol=-1)
-	else:
-		da.to_netcdf(outFile[0])
-
-
-
-
+#-----------------------------------------------------------------
 def defaultImport(config, inFiles, inpID):
 	"""
 	Default import function
@@ -118,7 +77,7 @@ def defaultImport(config, inFiles, inpID):
 	return(da)
 
 
-
+#-----------------------------------------------------------------
 def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID):
 	"""
 	Apply cutout based on lonlat
@@ -159,4 +118,69 @@ def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID):
 
 	# Done
 	return(da)
-	
+
+
+#-----------------------------------------------------------------	
+def buildPrimVar(config, inFiles, outFile, inpID):
+	"""
+	Build primary variables
+
+	Controls the import of data and generation of primary variables
+
+	Args:
+		config (_type_): Configuration object
+		inFiles (_type_): List of input files
+		outFile (_type_): Output file
+		inpID (_type_): Input item ID
+	"""
+	# Get input configuration
+	thisInp = config["inputs"][inpID]
+
+	# If an import function is defined, use that. Otherwise use the default
+	if thisInp["importScriptPath"]=='':
+		#Use default import
+		da= defaultImport(config, inFiles, inpID)
+		#Apply cutout functionality
+		if config["cutouts"]["method"] == "lonlatbox":
+			da=cutout_lonlat(da,
+					config["cutouts"]["xmin"],
+					config["cutouts"]["xmax"],
+					config["cutouts"]["ymin"],
+					config["cutouts"]["ymax"],
+					thisInp["varID"])
+
+	else:
+		#Use a custom import
+		imptFn=helpers.getExternalFunction(thisInp["importScriptPath"], thisInp["importScriptFunction"])
+		da = imptFn(config, inFiles, inpID)  
+
+	# Write the dataset object to disk, depending on the configuration
+	if config['processing']['picklePrimaryVariables']:
+		with open(outFile[0],'wb') as f:
+			pickle.dump(da,f,protocol=-1)
+	else:
+		#Load into memory - this should make things go faster when writing out
+		#in a chunked format. But there may be a challenge in having enough RAM
+		#to work with. We work this way to start with, but may need to add a 
+		#switch at some point in the future
+		#We also apply a little trick here, by forcing everything to be stored as
+		#netcdf "float" types as well.
+		daFloat=da.astype(np.float32)
+		daInMem=daFloat.compute()
+		# We want the output to be actively chunked along the time dimension
+		# to enable better control later in the project. We use dask to 
+		# identify the chunksizes that we want 
+		rechunkThisWay={}
+		for d in da.chunksizes:
+			if d=='time':
+				rechunkThisWay[d]=400
+			else:
+				rechunkThisWay[d]=10
+		da_tmp=da.chunk(rechunkThisWay)
+		likeThis=[max(chunks) for dim, chunks in zip(da_tmp.dims, da_tmp.chunks)]
+		#Now use the chunking scheme as the basis for writing out the encoding
+		daInMem.to_netcdf(outFile[0],
+					encoding={thisInp["varID"]:{'chunksizes':[256,16,16],
+							   'zlib': True,
+							   'complevel':1}})
+

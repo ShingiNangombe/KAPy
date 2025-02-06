@@ -8,119 +8,188 @@ import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 histsimFile='./outputs/1.variables/tas/tas_CORDEX_EUR-11_rcp85_IPSL-IPSL-CM5A-MR_r1i1p1_DMI-HIRHAM5_v1.nc'
-refFile="./outputs/1.variables/tas/tas_KGDK_KGDK_no-expt_tas_klimagrid_2023.nc"
-thisCal='tas-cal'
-%matplotlib qt
-import matplotlib.pyplot as plt
+refFile="outputs/1.variables/tas/tas_DANRA_DANRA_no-expt_t2m_DANRA_2023.nc"
+thisCal='tas-meanadj-DANRA'
 """
 
-from cdo import Cdo
+import xarray as xr
 import tempfile
+import xesmf as xe
 from . import helpers
+#from dask.distributed import Client
 
 def calibrate(config,histsimFile,refFile,outFile, thisCal):
-    #Setup
-    calCfg=config['calibration'][thisCal]
-    cdo=Cdo(tempdir='/dmidata/projects/klimaatlas/CLIM4CITIES/tmp/')
-
     # We choose to follow here the Xclim typology of ref / hist / sim, with the
     # assumption that the hist and sim part are contained in the same file ("histsim)")
+    # The general strategy employed is as follows:
+    # * Regrid histsim onto the reference grid
+    # * Merge histsim and ref into one dataset object. This requires a degree of
+    #   massaging of the time units to make sure everything is comparable
+    # * Apply the bias-correction function to chunks of the combined dataset using dask
 
-    # Regrid histsim using CDO nearest neighbour interpolation. We initially did this
-    # using the grid descriptor, but it works much better if you use the input file
-    # directly, to ensure that all necessary auxiliary information is included.
-    histsimNNFname=cdo.remapnn(refFile,input=histsimFile)
-    histsimNN=helpers.readFile(histsimNNFname,format=".nc").compute()
-
-    #Now import reference data - enforce loading, to avoid dask issues
-    refDat=helpers.readFile(refFile).compute()
-
-    #Truncate time slice to the common calibration period (CP). Ensure synchronisation
-    #between times and grids using nearest neighbour interpolation of
-    #the sim data to the obs data
-    histsimNNCP=helpers.timeslice(histsimNN,
-                     calCfg['calPeriodStart'],
-                     calCfg['calPeriodEnd'])
-    refDatCP=helpers.timeslice(refDat,
-                     calCfg['calPeriodStart'],
-                     calCfg['calPeriodEnd'])
-
-    #Match calendars between observations and simulations
-    #Note that here we have chosen here to align on year when converting to/from
-    #a 360 day calendar. This follows the recommendation in the xarray documentaion,
-    #under the assumption that we are primarily going to be working with daily data.
-    #See here for details:
-    #https://docs.xarray.dev/en/stable/generated/xarray.Dataset.convert_calendar.html
-    histsimNNCP=histsimNNCP.convert_calendar(refDatCP.time.dt.calendar,
-                                   use_cftime=True,
-                                   align_on="year")                     
-
-    #Setup mapping to methods and grouping
-    cmethodsAdj={"cmethods-linear":'linear_scaling',
-              "cmethods-variance":'variance_scaling',
-              "cmethods-delta":"delta_method",
-              "cmethods-quantile":'quantile_mapping',
-              "cmethods-quantile-delta":'quantile_delta_mapping'}
-    if calCfg['grouping']=="none":
-        grouping="time"
-    else:
-        grouping="time."+calCfg['grouping']
-
-    #Apply method
-    if calCfg['method'] in cmethodsAdj.keys():
-        raise ValueError('"cmethods" methods are currently disabled')
-        from cmethods import adjust        #Use the adjust function from python cmethods
-        res=adjust(method=cmethodsAdj[calCfg['method']],
-                    obs=refDatCP,
-                    simh=histsimNNCP,
-                    simp=histsimNN,
-                    group="time."+calCfg['grouping'],
-                    **calCfg['additionalArgs'])
-
-    elif calCfg['method']=="cmethods-detrended":
-        # Distribution methods from cmethods
-        from cmethods.distribution import detrended_quantile_mapping
-        raise ValueError('"cmethods-detrended" method is currently not implemented')
-
-    elif calCfg['method']=="xclim-eqm":
-        #Empirical quantile mapping -----------------------------
-        from xclim.sdba import EmpiricalQuantileMapping
-        EQM = EmpiricalQuantileMapping.train(refDatCP, 
-                                                 histsimNNCP, 
-                                                 group=grouping,
-                                                 **calCfg['additionalArgs'])
-        res = EQM.adjust(histsimNN, extrapolation="constant", interp="nearest")
-
-    elif calCfg['method']=="xclim-dqm":
-        #Detrended quantile mapping -----------------------------
-        from xclim.sdba import DetrendedQuantileMapping
-        DQM = DetrendedQuantileMapping.train(refDatCP, 
-                                                 histsimNNCP, 
-                                                 group=grouping,
-                                                 **calCfg['additionalArgs'])
-        res = DQM.adjust(histsimNN, extrapolation="constant", interp="nearest")
-
-    elif calCfg['method']=="xclim-scaling":
-        #Xclim - Scaling--------------------------------
-        from xclim.sdba.adjustment import Scaling
-        this = Scaling.train(refDatCP, 
-                                   histsimNNCP,
-                                   group=grouping,
-                                   **calCfg['additionalArgs'])
-        res = this.adjust(histsimNN, interp="nearest")
-
-
-    elif calCfg['method']=="custom":
-        raise ValueError('"custom" calibration is currently not implemented')
+    #Setup ------------------------
+    calCfg=config['calibration'][thisCal]
+    histsim=helpers.readFile(histsimFile)
+    refds=helpers.readFile(refFile,chunks={'time':-1})
+ #   client=Client()
+  #  print(client.dashboard_link)
     
-    else:
-        #Custom defined function
-        raise ValueError(f'Unsupported calibration method "{calCfg['method']}".')
+    # Regrid to common spatial grids ------------------
+    # Regrid histsim using nearest neighbour interpolation to the refFile grid. 
+    # We have tried several iterations of this based on CDO, but CDO unfortunately doesn't
+    # respect the chunking of the histsim file. xESMF is currently our tool of choice
+    # due to its ability to work ok with dask.
+    # Start by getting the regridding weights
+    regrdWtsFname=tempfile.NamedTemporaryFile(dir=config['dirs']['tempDir'],
+                                                delete=False,
+                                                prefix="regrdWts_",
+                                                suffix=".nc").name
+    regrdr=xe.Regridder(histsim,refds,
+                       method="nearest_s2d",
+                       filename=regrdWtsFname)
+    # Then apply the regridding. 
+    # The regridder seems to work best when it can work with all of the spatial elements 
+    # together, implying full spatial chunking. But this creates problems with the later
+    # steps of the calibration, which require that we have the full timeseries in memory.
+    # We therefore choose to write the regridding data to disk at this point with a 
+    # chunking pattern that is amenable to further work downstrem. 
+    rechunkSpace={d: -1 for d in histsim.dims if d!='time'}
+    histsimRechunked=histsim.chunk(rechunkSpace)
+    regrdFname=tempfile.NamedTemporaryFile(dir=config['dirs']['tempDir'],
+                                                delete=False,
+                                                prefix="histsimNN_",
+                                                suffix=".nc").name
+    histsimNN=regrdr(histsimRechunked,output_chunks=(-1,-1),keep_attrs=True)
+    histsimNN.to_netcdf(regrdFname,
+              encoding={histsimNN.name:{'chunksizes':(256,16,16)}})
 
+    #Now reopen histsimNN
+    histsimNN=helpers.readFile(regrdFname,chunks={'time':-1}).unify_chunks()
 
-    #Finish
-    res = res.transpose(*refDatCP.dims)
-    res.name=calCfg['outVariable']
-    res.to_netcdf(outFile[0])
+    # Prepare combined dataset ------------------------------
+    # From a bias-correction perspective, the only part of the reference dataset that
+    # is interesting is the common period data - there could be a whole lot more
+    # that we otherwise don't use. We therefore drop the uninteresting parts
+    refdsCP=helpers.timeslice(refds,
+                     calCfg['calPeriodStart'],
+                     calCfg['calPeriodEnd'])
+    #Align the calendar representation and rename variables                     
+    refdsCPtime=(refdsCP
+                 .convert_calendar(histsimNN.time.dt.calendar,
+                                   use_cftime=True,
+                                   align_on="year")
+                .rename({"time": "reftime"}))
+    
+    # Merge into one dataset object, with common spatial dimensions but
+    # differentiated time dimensions. Note the need to unify the chunking
+    combDS2=xr.Dataset({'histsim':histsimNN.unify_chunks(),
+                        'ref':refdsCPtime.unify_chunks()})
+    combDS=combDS2.unify_chunks()
+    #Parallelised calibration functions ------------------------------
+    def calibrateThisChunk(chnk,calCfg):
+        #Debug
+        # hs=combDS.histsim.data.blocks[0,0,0].compute()
+        # rf=combDS.ref.data.blocks[0,0,0].compute()
+        #Extract the data from the input block
+        hs=chnk.histsim
+        rfCP=chnk.ref
 
+        #Truncate time slice to the common calibration period (CP). 
+        #Adjust the naming of the reference time
+        hsCP=helpers.timeslice(hs,
+                        calCfg['calPeriodStart'],
+                        calCfg['calPeriodEnd'])
+        rfCP=rfCP.rename({"reftime": "time"})
+
+        #Match calendars between reference data and simulations
+        #Note that here we have chosen here to align on year when converting to/from
+        #a 360 day calendar. This follows the recommendation in the xarray documentaion,
+        #under the assumption that we are primarily going to be working with daily data.
+        #See here for details:
+        #https://docs.xarray.dev/en/stable/generated/xarray.Dataset.convert_calendar.html
+        hsCP=hsCP.convert_calendar(rfCP.time.dt.calendar,
+                                    use_cftime=True,
+                                    align_on="year")  
+        
+        #Setup mapping to methods and grouping
+        cmethodsAdj={"cmethods-linear":'linear_scaling',
+                "cmethods-variance":'variance_scaling',
+                "cmethods-delta":"delta_method",
+                "cmethods-quantile":'quantile_mapping',
+                "cmethods-quantile-delta":'quantile_delta_mapping'}
+        if calCfg['grouping']=="none":
+            grouping="time"
+        else:
+            grouping="time."+calCfg['grouping']
+        
+        #Apply method
+        if calCfg['method'] in cmethodsAdj.keys():
+            raise ValueError('"cmethods" methods are currently disabled')
+            from cmethods import adjust        #Use the adjust function from python cmethods
+            res=adjust(method=cmethodsAdj[calCfg['method']],
+                        obs=refDatCP,
+                        histsimNNCP=histsimNNCP.compute(),
+                        simh=histsimNNCP,
+                        simp=histsimNN,
+                        group="time."+calCfg['grouping'],
+                        **calCfg['additionalArgs'])
+
+        elif calCfg['method']=="cmethods-detrended":
+            # Distribution methods from cmethods
+            from cmethods.distribution import detrended_quantile_mapping
+            raise ValueError('"cmethods-detrended" method is currently not implemented')
+
+        elif calCfg['method']=="xclim-eqm":
+            #Empirical quantile mapping -----------------------------
+            from xclim.sdba import EmpiricalQuantileMapping
+            EQM = EmpiricalQuantileMapping.train(rfCP, 
+                                                    hsCP, 
+                                                    group=grouping,
+                                                    **calCfg['additionalArgs'])
+            res = EQM.adjust(hs, extrapolation="constant", interp="nearest")
+
+        elif calCfg['method']=="xclim-dqm":
+            #Detrended quantile mapping -----------------------------
+            from xclim.sdba import DetrendedQuantileMapping
+            DQM = DetrendedQuantileMapping.train(rfCP, 
+                                                    hsCP, 
+                                                    group=grouping,
+                                                    **calCfg['additionalArgs'])
+            res = DQM.adjust(hs, extrapolation="constant", interp="nearest")
+
+        elif calCfg['method']=="xclim-scaling":
+            #Xclim - Scaling--------------------------------
+            from xclim.sdba.adjustment import Scaling
+            this = Scaling.train(rfCP, 
+                                    hsCP,
+                                    group=grouping,
+                                    **calCfg['additionalArgs'])
+            res = this.adjust(hs, interp="nearest")
+
+        elif calCfg['method']=="custom":
+            raise ValueError('"custom" calibration is currently not implemented')
+        
+        else:
+            #Custom defined function
+            raise ValueError(f'Unsupported calibration method "{calCfg['method']}".')
+        
+        #Correct output structure and Finish
+        resTrans = res.transpose(*rfCP.dims)
+        return resTrans
+    
+    # Do calibration----------------------
+    # Apply function in a parallelised manner
+    out=xr.map_blocks(func=calibrateThisChunk,
+                        obj=combDS,
+                        kwargs={'calCfg':calCfg},
+                        template=histsimNN)
+
+    #Finishing touches
+    out2=out.rename(calCfg['outVariable'])   #Return object, rather than inline modification
+
+    #Now write, setting the chunk sizes and compression
+    out2.to_netcdf(outFile[0],
+                encoding={calCfg['outVariable']:{'chunksizes':[256,16,16],
+                            'zlib': True,
+                            'complevel':1}})
 

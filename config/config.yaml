@@ -20,6 +20,7 @@ dirs:
     ensstats: 'outputs/5.ensstats'
     arealstats: 'outputs/6.areal_statistics'
     plots: 'outputs/7.plots'
+    tempDir: 'outputs/tmp'
 
 # Configuration options------------------------------------
 arealstats:
