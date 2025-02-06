@@ -9,7 +9,8 @@
 configurationTables:
     inputs:  'config/inputs.tsv'
     indicators: 'config/indicators.tsv'
-    #    calibration: 'config/calibration.tsv'
+    secondaryVars: '' #'config/secondaryVars.tsv'
+    calibration: '' #'config/calibration.tsv'
     periods:  'config/periods.tsv'
     seasons: 'config/seasons.tsv'
 dirs:

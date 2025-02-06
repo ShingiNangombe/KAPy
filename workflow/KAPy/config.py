@@ -52,41 +52,44 @@ def validateConfig(config):
     # Validate configuration file
     validate(config, os.path.join(schemaDir, "config.schema.json"))
 
-    # Now check that the other configuration tables exist
-    for thisKey, thisPath in config["configurationTables"].items():
-        if not os.path.exists(thisPath):
-            sys.exit(
-                f"Cannot find configuration table '{thisKey}' at path '{thisPath}'."
-            )
-
-    # Validate each table in turn. The validation approach used
+    # Validate each configuration table in turn. The validation approach used
     # is defined in the following table
     tabularCfg = {
         "inputs": {"listCols": ['ensMemberFields'], 
                    "dictCols": [], 
-                   "schema": "inputs"},
+                   "schema": "inputs",
+                   "optional": False},
         "periods": {"listCols": [], 
                     "dictCols": [], 
-                    "schema": "periods"},
+                    "schema": "periods",
+                   "optional": False},
         "seasons": {"listCols": ["months"], 
                     "dictCols": [], 
-                    "schema": "seasons"},
+                    "schema": "seasons",
+                    "optional": False},
         "secondaryVars": {
             "listCols": ["inputVars", "outputVars"],
             "dictCols": ["additionalArgs"],
-            "schema": "derivedVars"},
+            "schema": "derivedVars",
+            "optional": True},
         "calibration": {"listCols": [], 
                         "dictCols": ["additionalArgs"],
-                        "schema": "calibration"},
+                        "schema": "calibration",
+                        "optional": True},
         "indicators": {"listCols": [], 
                        "dictCols": ["additionalArgs"], 
-                       "schema": "indicators"}
+                       "schema": "indicators",
+                       "optional": True},
         }
     for thisTblKey, theseVals in tabularCfg.items():
-        # Load the variables that are defined as tabular configurations (if they exist)
-        if not thisTblKey in config["configurationTables"]:
-            continue
+        # Load the tablular configuration table (if it  exists)
         thisCfgFile = config["configurationTables"][thisTblKey]
+        if (thisCfgFile =='') & theseVals['optional']:
+            continue  #Not using this option
+        elif (thisCfgFile =='') & theseVals['optional']:
+            raise ValueError(f"Configuration table '{thisKey}' must be specified.")            
+        elif not os.path.exists(thisCfgFile):
+            raise FileNotFoundError(f"Cannot find configuration table '{thisKey}' at path '{thisPath}'.")
         thisTbl = pd.read_csv(thisCfgFile, sep="\t", 
                               comment="#",
                               dtype='str',
