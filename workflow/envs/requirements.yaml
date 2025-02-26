@@ -30,6 +30,7 @@ dependencies:
   - regionmask
   - snakemake
   - xarray
+  - xesmf
   - xclim
   - yaml
   - zarr
