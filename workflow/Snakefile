@@ -67,30 +67,33 @@ rule primaryVars:
 # Good examples include FWI, PoteEvap and SPI. 
 # Singular rule
 def secVar_singular_rule(thisID):
-    thisVar=config['secondaryVars'][thisID]
+    thisVar=config['secondaryVars'][thisID]['outputVars'][0]
     rule:  
         name: f'secondaryVar_{thisID}'
         output:
             os.path.join(outDirs['variables'],
-                         f"{thisVar['outputVars']}",
-                         f"{thisVar['outputVars']}_{{stem}}")
+                         thisVar,
+                         "{fname}")
         input:
-            os.path.join(outDirs['variables'],
-                         f"{thisVar['inputVars']}",
-                         f"{thisVar['inputVars']}_{{stem}}")
+            unpack(lambda wildcards:
+                wf['secondaryVars'][thisID][os.path.join(outDirs['variables'],
+                                                            thisVar,
+                                                            wildcards.fname)])
         run:
             KAPy.buildDerivedVar(config=config,
                                      inFiles=input, 
                                      outFile=output,
                                      thisVar=thisVar)
-            
+
+
 #Plural rule
 def secVar_plural_rule(thisID):
     rule:
         name: f'{thisID}'
         input:
-            wf['secondaryVars'][thisID]['files']
-            
+            list(wf['secondaryVars'][thisID].keys())
+
+
 for inpID in wf['secondaryVars'].keys():
     secVar_singular_rule(inpID)
     secVar_plural_rule(inpID)
@@ -98,8 +101,7 @@ for inpID in wf['secondaryVars'].keys():
 #Run all plurals    
 rule secondaryVars:
     input:
-        [item for thisVar in wf['secondaryVars'].values() for item in thisVar['files'] ]
-        
+        [list(thisInp.keys()) for thisInp in wf['secondaryVars'].values()]       
         
 # Calibration -------------------
 # Aka bias-correction. 

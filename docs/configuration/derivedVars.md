@@ -10,5 +10,5 @@
 - **`processorType`** *(string, required)*: What sort of processor will be used to calculate the new variable. Functions can be taken from an installed python module `module` or a python `script` containing a function. Must be one of: `["module", "script"]`.
 - **`processorPath`** *(string, required)*: The path to the processor. When `processorType` is `module`, the name of the module - otherwise the path to the python `script` containing the function to be used, relative to the working directory.
 - **`processorFunction`** *(string, required)*: The name of the function to be used to calculate the new variable.
-- **`passXarrays`** *(boolean, required)*: Should KAPy pass xArray objects to the function? If no, then then path to the input file is passed as a string instead.
+- **`passXarrays`**: Should KAPy pass xArray objects to the function? If no, then then path to the input file is passed as a string instead. Must be one of: `["True", "False"]`.
 - **`additionalArgs`** *(string, required)*: Additional arbitrary arguments specified as a dict to be passed to the function via keyword arguments. e.g. `{'param1':10,'doSim':true,'name':'myname'}`. Can be an empty dict if no there are no additional parameters. e.g. `{}` `.

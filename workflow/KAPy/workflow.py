@@ -161,13 +161,10 @@ def getWorkflow(config):
     # Iterate over secondary variables if they are request
     svDict = {}
     if "secondaryVars" in config:
-        sys.exit("Not tested. TODO")
         for thisSV in config["secondaryVars"].values():
-            # Convert varList into a workable format
-            varTbl = filelistToDataframe(varList)
             # Now filter by the input variables needed for this derived variable
-            selThese = [v in thisSV["inputVars"] for v in varTbl["varName"]]
-            longSVTbl = varTbl[selThese]
+            selThese = [v in thisSV["inputVars"] for v in varPal["varID"]]
+            longSVTbl = varPal[selThese]
             try:
                 if longSVTbl.size == 0:
                     raise ValueError(
@@ -179,19 +176,24 @@ def getWorkflow(config):
 
             # Pivot and retain only those in common
             svTbl = longSVTbl.pivot(
-                index=["src", "stems"], columns="varName", values="path"
+                index=["srcID","gridID","expt", "stems"], columns="varID", values="path"
             )
             svTbl = svTbl.dropna().reset_index()
+
             # Now we have a list of valid files that can be made. Store the results
-            validPaths = [
-                os.path.join(outDirs["variables"], var, fName)
-                for var in thisSV["outputVars"]
-                for fName in f"{var}_" + svTbl["src"] + "_" + svTbl["stems"] + ".nc"
+            svTbl['outFile'] = [
+                os.path.join(outDirs["variables"], thisSV["outputVars"][0], fName)
+                for fName in f"{thisSV["outputVars"][0]}_" + svTbl["srcID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
             ]
 
-            svDict[thisSV["id"]] = thisSV
-            svDict[thisSV["id"]]["files"] = validPaths
-            varList += validPaths
+            # Add to output dict
+            for idx, rw in svTbl.iterrows():
+                inputVarDict={v:rw[v] for v in thisSV['inputVars']}
+                svDict[thisSV['id']]= {rw['outFile'] : inputVarDict}
+
+            # Add to variable palette
+            varPal = pd.concat([varPal,
+                               parseFilelist(svTbl['outFile'].to_list())])
 
     # Calibration -------------------------------------------------------
     # Calibrated variables and secondary variables share a very similar logic
@@ -257,6 +259,8 @@ def getWorkflow(config):
         #Only extract the dict for the part that we are actually
         #interested in
         useThese = varPal["varID"] == thisInd["variables"]
+        if not any(useThese):
+            raise ValueError(f"Cannot find variable(s) {thisInd["variables"]} to calculate indicators from.")
         indDict[indKey] = {rw["indPath"]: [rw["path"]] \
                                     for idx, rw in varPal[useThese].iterrows()}
 
@@ -391,12 +395,13 @@ def getWorkflow(config):
     allList = []
     for k, v in rtn.items():
         if k in ["primVars",
+                 "secondaryVars",
                  "indicators"]:  # Requires special handling, as these are nested lists
             for x in v.values():
                 allList += x.keys()
-        elif k in ["secondaryVars"]:  # Requires special handling, as these are nested lists
-            for x in v.values():
-                allList += x["files"]
+        # elif k in ["secondaryVars"]:  # Requires special handling, as these are nested lists
+        #     for x in v.values():
+        #         allList += x["files"]
         else:
             allList += v.keys()
     rtn["all"] = allList

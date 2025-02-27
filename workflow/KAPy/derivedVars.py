@@ -26,7 +26,7 @@ def buildDerivedVar(config, inFiles, outFile, thisVar):
     inDict = {os.path.basename(os.path.dirname(f)): f for f in inFiles}
 
     # Load input files
-    if thisVar["passXarrays"]:  # Then load the paths into xarrays. Otherwise just pass the path.
+    if thisVar["passXarrays"]=='True':  # Then load the paths into xarrays. Otherwise just pass the path.
         inDict = {thisKey: helpers.readFile(thisPath) for thisKey, thisPath in inDict.items()}
 
     # Now get the function to call
