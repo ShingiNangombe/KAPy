@@ -1,12 +1,12 @@
 """
-#Setup for debugging with a Jupyterlab console
+#Setup for debugging with VSCode 
 import os
-os.chdir("..")
+print(os.getcwd())
 import KAPy
-os.chdir("..")
+os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-thisID='SPI3'
+thisID='deltaT'
 thisVar=config['secondaryVars'][thisID]
 inFiles=['./outputs/1.variables/pr/pr_KAba_rcp26_EUR-11_CCCma-CanESM2r1i1p1_CLMcom-CCLM4-8-17_v1_day.nc']
 import sys

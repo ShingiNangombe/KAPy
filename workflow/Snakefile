@@ -67,17 +67,18 @@ rule primaryVars:
 # Good examples include FWI, PoteEvap and SPI. 
 # Singular rule
 def secVar_singular_rule(thisID):
-    thisVar=config['secondaryVars'][thisID]['outputVars'][0]
+    thisVar=config['secondaryVars'][thisID]
+    thisOutputVar=thisVar['outputVars'][0]
     rule:  
         name: f'secondaryVar_{thisID}'
         output:
             os.path.join(outDirs['variables'],
-                         thisVar,
+                         thisOutputVar,
                          "{fname}")
         input:
             unpack(lambda wildcards:
                 wf['secondaryVars'][thisID][os.path.join(outDirs['variables'],
-                                                            thisVar,
+                                                            thisOutputVar,
                                                             wildcards.fname)])
         run:
             KAPy.buildDerivedVar(config=config,
