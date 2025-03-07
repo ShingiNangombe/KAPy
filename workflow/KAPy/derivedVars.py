@@ -49,4 +49,8 @@ def buildDerivedVar(config, inFiles, outFile, thisVar):
 
     # Write the results to disk
     out.name = thisVar["id"]
-    out.to_netcdf(outFile[0])
+    out.to_netcdf(outFile[0],
+                encoding={thisVar["id"]:{'chunksizes':[256,16,16],
+                                         'zlib': True,
+                                         'complevel':1}})
+
