@@ -4,16 +4,14 @@ import os
 print(os.getcwd())
 os.chdir("..")
 import KAPy
-os.chdir("..")
-os.chdir("..")
+os.chdir("../..")
 print(os.getcwd())
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
 inpID=next(iter(wf['primVars'].keys()))
 outFile=[next(iter(wf['primVars'][inpID]))]
 inFiles=wf['primVars'][inpID][outFile[0]]
-%matplotlib qt
-import matplotlib.pyplot as plt
+%matplotlib inline
 """
 
 # Given a set of input files, create objects that can be worked with
@@ -48,6 +46,7 @@ def defaultImport(config, inFiles, inpID):
 							combine='nested',
 							use_cftime=True, 
 							join="override", 
+							chunks={'time':256},
 							concat_dim='time')
 	dsIn=dsIn.sortby('time')
 
@@ -159,27 +158,11 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 		with open(outFile[0],'wb') as f:
 			pickle.dump(da,f,protocol=-1)
 	else:
-		#Load into memory - this should make things go faster when writing out
-		#in a chunked format. But there may be a challenge in having enough RAM
-		#to work with. We work this way to start with, but may need to add a 
-		#switch at some point in the future
 		#We also apply a little trick here, by forcing everything to be stored as
 		#netcdf "float" types as well.
 		daFloat=da.astype(np.float32)
-		daInMem=daFloat.compute()
-		# We want the output to be actively chunked along the time dimension
-		# to enable better control later in the project. We use dask to 
-		# identify the chunksizes that we want 
-		rechunkThisWay={}
-		for d in da.chunksizes:
-			if d=='time':
-				rechunkThisWay[d]=400
-			else:
-				rechunkThisWay[d]=10
-		da_tmp=da.chunk(rechunkThisWay)
-		likeThis=[max(chunks) for dim, chunks in zip(da_tmp.dims, da_tmp.chunks)]
 		#Now use the chunking scheme as the basis for writing out the encoding
-		daInMem.to_netcdf(outFile[0],
+		daFloat.to_netcdf(outFile[0],
 					encoding={thisInp["varID"]:{'chunksizes':[256,16,16],
 							   'zlib': True,
 							   'complevel':1}})
