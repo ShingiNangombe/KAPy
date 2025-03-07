@@ -6,7 +6,7 @@ import os
 print(os.getcwd())
 os.chdir("..")
 import KAPy
-os.chdir("..")
+os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")
 pd.set_option('display.max_colwidth', None)
 """
@@ -187,9 +187,11 @@ def getWorkflow(config):
             ]
 
             # Add to output dict
+            outDict={}
             for idx, rw in svTbl.iterrows():
                 inputVarDict={v:rw[v] for v in thisSV['inputVars']}
-                svDict[thisSV['id']]= {rw['outFile'] : inputVarDict}
+                outDict[rw['outFile']] =inputVarDict 
+            svDict[thisSV['id']] = outDict
 
             # Add to variable palette
             varPal = pd.concat([varPal,
@@ -232,8 +234,10 @@ def getWorkflow(config):
             ]
 
             # Add to output dict
+            outDict={}
             for idx, rw in calTbl.iterrows():
-                calDict[thisCal['id']]= {rw['outFile'] : {'histsim':rw['path'],'ref':refDict['path']}}
+                outDict[rw['outFile']] = {'histsim':rw['path'],'ref':refDict['path']}
+            calDict[thisCal['id']]=outDict
 
             # Add to variable palette
             varPal = pd.concat([varPal,
