@@ -400,6 +400,7 @@ def getWorkflow(config):
     for k, v in rtn.items():
         if k in ["primVars",
                  "secondaryVars",
+                 "calibratedVars",
                  "indicators"]:  # Requires special handling, as these are nested lists
             for x in v.values():
                 allList += x.keys()
