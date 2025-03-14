@@ -38,13 +38,10 @@
   - **`upperPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
   - **`centralPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
   - **`lowerPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
-- **`outputGrid`**: Defines the common output grid onto which KAPy interpolates all indicators before calculating ensemble statistics. Multiple approaches to regridding can be configured, as described below.
-  - **One of**
-    - *object*: **none**. Omit the regridding step. Assumes that all files within an input type are on the same grid, which will be used as the output grid. Cannot contain additional properties.
-      - **`regriddingEngine`** *(string, required)*: Must be one of: `["none"]`.
-    - *object*: **cdo**. Use the Climate Data Operators to do the regridding. For more information, see the CDO website, https://code.mpimet.mpg.de/projects/cdo. Installation of CDO is handled behind the scenes by conda as part of the KAPy environment setup - be aware that this may result in a different version of CDO being used to what you have by default. In the current configuration we default to bilinear interpolation (`remapbil`). If other operators are required, please file a feature request in GitHub. Cannot contain additional properties.
-      - **`regriddingEngine`** *(string, required)*: Must be one of: `["cdo"]`.
-      - **`gridName`** *(string, required)*: String giving the name of the grid to be used in regridding filenames.
-      - **`cdoGriddes`** *(string, required)*: CDO grid descriptor, specifying the output grid. Following the way that CDO works, this can either be a path to a grid descriptor file, or one of the predefined grids e.g. `global_1`. For more information see the CDO documentation, specifically [section 1.5](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-280001.5) about horizontal grids, [section 2.12](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-6900002.12] about interpolation and [Appendix D](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-995000D] for examples of grid descriptors.
+- **`outputGrid`** *(object, required)*: Defines the common output grid onto which KAPy interpolates all indicators before calculating ensemble statistics. Can be disabled by setting `templateType` to `none`. . Cannot contain additional properties.
+  - **`templateType`** *(string, required)*: Type of template to use to specify the output grid. Selecting `none` will disable regridding. Selecting `file` will use an existing NetCDF file as the template. Must be one of: `["none", "file"]`.
+  - **`gridName`** *(string, required)*: String giving the name of the grid to be used in regridding filenames.
+  - **`method`** *(string, required)*: Method used by the xESMF Regridder function to do the regridding. See documentaiton for xESMF for details. Must be one of: `["bilinear", "conservative", "conservative_normed", "patch", "nearest_s2d", "nearest_d2s"]`.
+  - **`path`** *(string, required)*: Path to the file to be used as a template.
 - **`processing`** *(object, required)*: Cannot contain additional properties.
   - **`picklePrimaryVariables`** *(boolean, required)*: Should the the primary variables be stored as 'pickled' xarray objects (`True`) or written out to disk as NetCDF files (`False`).

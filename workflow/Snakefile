@@ -189,7 +189,7 @@ rule indicators:
 # Combining everything into an ensemble requires that they are all on a common grid
 # This step is optional but if the models are not on a common grid, this will cause failure 
 # when we come to the ensstats generation
-if config['outputGrid']['regriddingEngine']!='none':
+if config['outputGrid']['templateType']!='none':
     rule regrid:
         input:
             list(wf['regridded'].keys())
@@ -201,7 +201,7 @@ if config['outputGrid']['regriddingEngine']!='none':
             inputFile=lambda wildcards: wf['regridded'][os.path.join(outDirs['regridded'],
                                                            wildcards.indID,
                                                            wildcards.fname)],
-            grid=config['outputGrid']["cdoGriddes"]
+            template=config['outputGrid']["path"]
         run:
             KAPy.regrid(config,input.inputFile,output)
 

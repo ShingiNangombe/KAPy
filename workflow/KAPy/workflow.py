@@ -270,7 +270,7 @@ def getWorkflow(config):
 
     # Regridding-----------------------------------------------------------------------
     # We only regrid if it is requested in the configuration
-    doRegridding = config["outputGrid"]["regriddingEngine"] != "none"
+    doRegridding = config["outputGrid"]["templateType"] != "none"
     if doRegridding:
         # Remap directory
         rgTbl = pd.DataFrame([k for v in indDict.values() for k in v.keys()], 
