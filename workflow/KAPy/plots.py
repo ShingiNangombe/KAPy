@@ -5,7 +5,7 @@ import os
 print(os.getcwd())
 os.chdir("..")
 import KAPy
-os.chdir("..")
+os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
 """
@@ -106,6 +106,7 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
 """
 outFile='outputs/7.plots/101_spatial.png'
 srcFiles=wf['plots'][outFile]
+indID='101'
 """
 def makeSpatialplot(config, indID, srcFiles, outFile=None):
     # Extract indicator info
@@ -136,8 +137,12 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
     pltDat['periodLbl']= [ periodLblDict[p] for p in pltDat['periodID']]
 
     #Identify spatial coordinates
-    spDimX=[d for d in pltDat.columns if d in ['x','longitude','long','lon']]
-    spDimY=[d for d in pltDat.columns if d in ['y','latitude','lat']]
+    spDimX=[d for d in pltDat.columns if d in ['x','longitude','long','lon','eastings']]
+    spDimY=[d for d in pltDat.columns if d in ['y','latitude','lat','northings']]
+    if len(spDimX)==0:
+        raise ValueError("Cannot identify x-spatial coordinate.")
+    if len(spDimY)==0:
+        raise ValueError("Cannot identify y-spatial coordinate.")
     pltDat['x']=pltDat[spDimX]
     pltDat['y']=pltDat[spDimY]
 
