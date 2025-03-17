@@ -28,10 +28,17 @@ def generateEnsstats(config, inFiles, outFile):
                                 coords="all",
                                 use_cftime=True)
     # Calculate the statistics
-    ens_mean_std = xcEns.ensemble_mean_std_max_min(thisEns)
-    ens_percs = xcEns.ensemble_percentiles(
+    ensStats = xcEns.ensemble_mean_std_max_min(thisEns)
+
+    #Calculate the percentiles and transpose to a more friendly order
+    ensPercs = xcEns.ensemble_percentiles(
         thisEns, split=False, values=[x for x in config["ensembles"].values()]
     )
-    ensOut = xr.merge([ens_mean_std, ens_percs])
+    if "periodID" in ensPercs.indicator.dims:
+        ensPercs=ensPercs.transpose("periodID","seasonID","percentiles",...)
+    else:
+        ensPercs=ensPercs.transpose("time","seasonID","percentiles",...)
+
     # Write results
+    ensOut = xr.merge([ensStats, ensPercs])
     ensOut.to_netcdf(outFile[0])

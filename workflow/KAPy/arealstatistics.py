@@ -2,15 +2,15 @@
 #Setup for debugging with VS code 
 import os
 print(os.getcwd())
+import helpers
 os.chdir("..")
 import KAPy
-os.chdir("..")
+os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-ensID=next(iter(wf['ensstats'].keys()))
+ensID=list(wf['ensstats'].keys())[0]
 inFile=wf['ensstats'][ensID]
-#Enable inline plotting in vscode
-%matplotlib qt
+%matplotlib inline
 """
 
 import xarray as xr
@@ -42,10 +42,10 @@ def generateArealstats(config, inFile, outFile):
     # If using area weighting, get the pixel size
     if config['arealstats']['useAreaWeighting']:
         cdo=Cdo()
-        pxlSize=cdo.gridarea(input=thisDat[{tCoord:0}],
+        pxlSize=cdo.gridarea(input=thisDat[{tCoord:0,"seasonID":0}],
                              returnXArray='cell_area')
     else:
-        pxlSize=thisDat[{tCoord:0}]
+        pxlSize=thisDat[{tCoord:0,"seasonID":0}]
         pxlSize.values[:]=1
 
     # If we have a shapefile defined, then work with it
@@ -62,7 +62,7 @@ def generateArealstats(config, inFile, outFile):
 
         #Apply masking and weighting and calculate
         wtThis=maskRaster*pxlSize
-        statDims=set(thisDat.dims) - set(['region','periodID','time','percentiles'])
+        statDims=set(thisDat.dims) - set(['region','periodID','time',"seasonID",'percentiles'])
         wtMean = thisDat.weighted(wtThis).mean(dim=statDims)
         wtMean.name='mean'
         wtSd = thisDat.weighted(wtThis).std(dim=statDims)
@@ -76,7 +76,7 @@ def generateArealstats(config, inFile, outFile):
     #Otherwise, just average spatially
     else:
         # Average spatially over the time dimension
-        spDims =set(thisDat.dims)-set(['time','periodID','percentiles'])
+        spDims =set(thisDat.dims)-set(['time','periodID',"seasonID",'percentiles'])
         spMean = thisDat.weighted(pxlSize).mean(dim=spDims)
         spMean.name='mean'
         spSd = thisDat.weighted(pxlSize).std(dim=spDims)

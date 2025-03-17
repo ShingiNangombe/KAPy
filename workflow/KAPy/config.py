@@ -76,7 +76,7 @@ def validateConfig(config):
                         "dictCols": ["additionalArgs"],
                         "schema": "calibration",
                         "optional": True},
-        "indicators": {"listCols": [], 
+        "indicators": {"listCols": ["seasons"], 
                        "dictCols": ["additionalArgs"], 
                        "schema": "indicators",
                        "optional": True},
@@ -124,13 +124,13 @@ def validateConfig(config):
     for thisKey, theseValues in config["seasons"].items():
         theseMnths = theseValues["months"]
         if len(theseMnths) > 12:
-            sys.exit("Between 1 and 12 months should be selected")
+            raise ValueError("Between 1 and 12 months should be selected")
         if len(theseMnths) == 0:  # Set to all months
             theseMnths = list(range(1, 13))
         # Length is ok. Now convert to integers
         theseMnths = [int(i) for i in theseMnths]
         if max(theseMnths) > 12 | min(theseMnths) < 1:
-            sys.exit("Month specification must be between 1 and 12 inclusive")
+            raise ValueError("Month specification must be between 1 and 12 inclusive")
         # Write the integers back to finish
         config["seasons"][thisKey]["months"] = theseMnths
 
@@ -138,9 +138,10 @@ def validateConfig(config):
     # Currently allow only one season per indicator. This needs to be fixed in the future
     indTbl = pd.DataFrame.from_dict(config["indicators"], orient="index")
     validSeasons = list(config["seasons"].keys()) + ["all"]
-    for seasonRequest in indTbl["season"]:
-        if not (all([this in validSeasons for this in [seasonRequest]])):
-            sys.exit(f"Unknown season specified in: {seasonRequest}")
+    for idx,thisrw in indTbl.iterrows():
+        for requestSeason in thisrw["seasons"]:
+            if not (requestSeason in validSeasons):
+                raise ValueError(f"Unknown season '{requestSeason}' requested for indicator '{thisrw["id"]}'.")
 
     return config
 
