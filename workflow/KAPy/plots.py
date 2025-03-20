@@ -25,6 +25,7 @@ matplotlib.use('Agg')
 
 # Boxplot---------------------------------------------------------------------------
 """
+indID='101'
 outFile='outputs/7.plots/101_boxplot.png'
 srcFiles=wf['plots'][outFile]
 """
@@ -65,12 +66,16 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
     # Now merge into dataframe and pivot for plotting
     pltLong = pd.merge(datdf, ptileTbl, on="percentiles", how="left")
     pltDatWide = pltLong.pivot_table(
-        index=["lbl", "periodID"], columns="ptileLbl", values="mean"
+        index=["lbl", "periodID","seasonID","statistic"], columns="ptileLbl", values="indicator"
     ).reset_index()
+
+    # Filter remaining data
+    pltDat=pltDatWide[pltDatWide['statistic']=='mean']
 
     # Now plot
     p = (
-        ggplot(pltDatWide)
+        ggplot(pltDat)
+        + facet_wrap("~seasonID")
         + geom_boxplot(
             mapping=aes(
                 x="periodID",
@@ -90,9 +95,11 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
             title=f"{thisInd['name']} ",
             fill="",
         )
-        + scale_x_discrete(labels=periodLblDict)
+        + scale_x_discrete(labels=periodLblDict,    )
         + theme_bw()
-        + theme(legend_position="bottom", panel_grid_major_x=element_blank())
+        + theme(legend_position="bottom",
+                 panel_grid_major_x=element_blank(),
+                 axis_text_x=element_text(angle=90, hjust=0.5))                 
     )
 
     # Output
@@ -104,9 +111,9 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
 
 # Spatialplot -----------------------------------------------------------
 """
+indID='101'
 outFile='outputs/7.plots/101_spatial.png'
 srcFiles=wf['plots'][outFile]
-indID='101'
 """
 def makeSpatialplot(config, indID, srcFiles, outFile=None):
     # Extract indicator info
@@ -118,7 +125,8 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
         # Import object
         thisdat = xr.open_dataset(d)
         # We want to plot a spatial map of the first and last indicators
-        firstlast = thisdat.isel(periodID=[0,-1])
+        # We take the first season
+        firstlast = thisdat.isel(periodID=[0,-1],seasonID=0)
         firstlastdf = firstlast.indicator_mean.to_dataframe().reset_index()
         firstlastdf["fname"] = os.path.basename(d)
         firstlastdf["source"] = firstlastdf["fname"].str.extract("^[^_]+_([^_]+)_[^_]+_[^_]+_.*$")
@@ -160,7 +168,11 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
         )
         + scale_x_continuous(expand=[0, 0])
         + scale_y_continuous(expand=[0, 0])
-        + theme(legend_position="bottom")
+        + theme(legend_position="bottom",
+                axis_text_x=element_blank(),
+                axis_text_y=element_blank(),
+                axis_ticks_major_x=element_blank(),
+                axis_ticks_major_y=element_blank())
         + coord_fixed()
     )
 
@@ -173,7 +185,8 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
 
 # Lineplot------------------------------------------------------------------
 """
-outFile='outputs/7.plots/102_lineplot.png'
+indID='101y'
+outFile=f'outputs/7.plots/{indID}_lineplot.png'
 srcFiles=wf['plots'][outFile]
 """
 
@@ -196,13 +209,16 @@ def makeLineplot(config, indID, srcFiles, outFile=None):
     datdf['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
                   for idx,rw in datdf.iterrows()]
 
-    # Now select data for plotting - we only plot the central value, not the full range
+    # Now select data for plotting
+    # We only plot the central value, not the full range
+    # Drop the standard deviation - we only want the mean
     pltDat = datdf[datdf["percentiles"] == config["ensembles"]["centralPercentile"]]
-
+    pltDat = pltDat[pltDat["statistic"] == "mean"]
 
     # Now plot
     p = (
-        ggplot(pltDat, aes(x="datetime", y="mean", colour="lbl"))
+        ggplot(pltDat, aes(x="datetime", y="indicator", colour="lbl"))
+        + facet_wrap("~seasonID",as_table=False,dir="v")
         + geom_point()
         + labs(
             x="",

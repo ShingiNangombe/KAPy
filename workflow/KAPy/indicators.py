@@ -59,6 +59,7 @@ def calculateIndicators(config, inFile, outFile, indID):
         return(res)
 
     # Time binning over periods
+    # ----------------------------------
     if thisInd["time_binning"] == "periods":
         periodSlices = []
         for thisPeriod in config["periods"].values():
@@ -102,7 +103,8 @@ def calculateIndicators(config, inFile, outFile, indID):
         dout.seasonID.attrs["name"] = "seasonID"
         dout.seasonID.attrs["season_table"] = json.dumps(config['seasons'])
 
-    # Time binning by defined units
+    # Time binning by years
+    # ----------------------------
     elif thisInd["time_binning"] in ["years"]:
         #Loop over seasons
         seasonTimeseries=[]
@@ -143,12 +145,38 @@ def calculateIndicators(config, inFile, outFile, indID):
     else:
         raise ValueError(f"Unknown time_binning method, '{thisInd["time_binning"]}'.")
 
+
+    # Calculation of changes
+    # ------------------------
+    # First we need the values for the reference period. That's easy for
+    # period binning, but we need to calculate it for annual binning
+    if thisInd["time_binning"] == "periods":
+        # We use the first periodID as the reference here
+        ref=dout.isel(periodID=0)
+    elif thisInd["time_binning"] in ["years"]:
+        # Again use the first time period, but average
+        refPeriod=list(config["periods"].values())[0]
+        refDat=helpers.timeslice(dout,refPeriod["start"],refPeriod["end"])
+        ref=refDat.mean(dim='time')
+    else:
+        raise ValueError(f"Unknown time_binning method, '{thisInd["time_binning"]}'.")
+
+    #Calculate change
+    if thisInd['deltaType']=='subtract':
+        deltaOut=dout-ref
+    elif thisInd['deltaType']=='divide':
+        deltaOut=dout/ref
+    else:
+        raise ValueError(f"Unknown deltaType method, '{thisInd["deltaType"]}'.")
+    deltaOut.attrs['deltaType']=thisInd['deltaType']
+
     # Polish final product
-    dout.name = "indicator"
-    dout.attrs = {}
+    # ----------------------
+    ds=xr.Dataset({'indicator':dout,'delta':deltaOut})
+    ds.attrs = {}
     for thiskey in thisInd.keys():
         if thiskey != "files":
-            dout.attrs[thiskey] = str(thisInd[thiskey])
+            ds.attrs[thiskey] = str(thisInd[thiskey])
 
     # Write out
-    dout.to_netcdf(outFile[0])
+    ds.to_netcdf(outFile[0])

@@ -9,6 +9,7 @@
     "units",
     "variables",
     "time_binning",
+    "deltaType",
     "statistic",
     "additionalArgs",
     "customScriptPath",
@@ -55,6 +56,13 @@
       "enum": [
         "periods",
         "years"]
+    },
+    "deltaType": {
+      "description": "How to calculate the change in variables (the *delta*) relative to the reference period. Two options are permitted: `subtract`, where changes in the indicator relative to the mean over the reference period are calculated by subtraction, and `divide` where the change is expressed as the ratio of the indicator to the mean over the reference period. In both cases, the first period defined in the periods table is used as the reference period.",
+      "type": "string",
+      "enum": [
+        "subtract",
+        "divide"]
     },
     "statistic": {
       "description": "Statistic to be used to calculate the indicator. KAPy has three basic types of indicators built in. 1) `mean` calculates an average across the period. 2)`count` counts the number of days in the period above or below a threshold. Additional parameters must be supplied via the `additionalArgs` field: `threshold` is the threshold value, and `op` is the comparison operator - one of `>`,`gt`,`<`,`lt`,  `>=`, `ge`, `<=` or `le`.  3) `custom` calls the function defined in `customScriptPath` and `customScriptFunction` and utilised arguments supplied as a dictionary in `additionalArgs`.",

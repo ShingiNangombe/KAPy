@@ -27,9 +27,8 @@ def generateArealstats(config, inFile, outFile):
     # Setup xarray
     # Note that we need to use open_dataset here, as the ensemble files have
     # multiple data variables in them
-    thisDataSet = xr.open_dataset(inFile[0],
+    thisDat = xr.open_dataset(inFile[0],
                               use_cftime=True)
-    thisDat=thisDataSet.indicator
 
     #Identify the time / period coordinate first
     if 'time' in thisDat.dims:
@@ -42,10 +41,10 @@ def generateArealstats(config, inFile, outFile):
     # If using area weighting, get the pixel size
     if config['arealstats']['useAreaWeighting']:
         cdo=Cdo()
-        pxlSize=cdo.gridarea(input=thisDat[{tCoord:0,"seasonID":0}],
+        pxlSize=cdo.gridarea(input=thisDat[{tCoord:0,"seasonID":0}].indicator,
                              returnXArray='cell_area')
     else:
-        pxlSize=thisDat[{tCoord:0,"seasonID":0}]
+        pxlSize=thisDat[{tCoord:0,"seasonID":0}].indicator
         pxlSize.values[:]=1
 
     # If we have a shapefile defined, then work with it
@@ -78,12 +77,14 @@ def generateArealstats(config, inFile, outFile):
         # Average spatially over the time dimension
         spDims =set(thisDat.dims)-set(['time','periodID',"seasonID",'percentiles'])
         spMean = thisDat.weighted(pxlSize).mean(dim=spDims)
-        spMean.name='mean'
+        spMeanDf=spMean.to_dataframe()
+        spMeanDf['statistic']='mean'
         spSd = thisDat.weighted(pxlSize).std(dim=spDims)
-        spSd.name='sd'
+        spSdDf=spSd.to_dataframe()
+        spSdDf['statistic']='sd'
 
         # Save files pandas
-        dfOut = xr.merge([spMean,spSd]).to_dataframe()
+        dfOut = pd.concat([spMeanDf,spSdDf])
         dfOut["area"] = "all"  
 
     #Write out date without time for easier handling

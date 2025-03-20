@@ -22,8 +22,10 @@ def regrid(config, inFile, outFile):
     if not config["outputGrid"]["templateType"] == "file":
         raise ValueError("Regridding options are currently limited to `file`. See documentation")
 
-    #Setup input file
-    thisDat = helpers.readFile(inFile[0])
+    # Setup input file
+    # Note that as this is an indicator file, we open it as a dataset
+    thisDat = xr.open_dataset(inFile[0],
+                              use_cftime=True)
 
     #Setup reference grid
     refGrd=xr.open_mfdataset(config["outputGrid"]["path"])

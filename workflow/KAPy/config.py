@@ -87,13 +87,16 @@ def validateConfig(config):
         if (thisCfgFile =='') & theseVals['optional']:
             continue  #Not using this option
         elif (thisCfgFile =='') & theseVals['optional']:
-            raise ValueError(f"Configuration table '{thisKey}' must be specified.")            
+            raise ValueError(f"'{thisTblKey}' configuration table must be specified.")            
         elif not os.path.exists(thisCfgFile):
-            raise FileNotFoundError(f"Cannot find configuration table '{thisKey}' at path '{thisPath}'.")
+            raise FileNotFoundError(f"Cannot find '{thisTblKey}' configuration table at path '{thisCfgFile}'.")
         thisTbl = pd.read_csv(thisCfgFile, sep="\t", 
                               comment="#",
                               dtype='str',
                               keep_default_na=False)
+        # Require a non-zero length
+        if len(thisTbl)==0:
+            raise ValueError(f"'{thisTblKey}' configuration table at {thisCfgFile} is empty.")
         # We allow some columns to be defined here as lists, but these need to be
         # parsed before we can actually use them for something
         for col in theseVals["listCols"]:

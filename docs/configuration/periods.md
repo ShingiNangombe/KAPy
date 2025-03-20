@@ -1,6 +1,6 @@
 # KAPy periods configuration
 
-*Calculation periods in KAPy are configured through a tab-separated table, with one row per period. The available options are described here. All options are required*
+*Calculation periods in KAPy are configured through a tab-separated table, with one row per period. At least one period must be defined, even in configurations where there is no `period` time-binning used, as the first period is used as the reference period against which changes in indicators are calculated. The available options are described here. All options are required.*
 
 ## Properties
 
