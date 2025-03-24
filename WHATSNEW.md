@@ -5,6 +5,7 @@
 * Add deltas/changes in indicators #137
 * Regridding handles land-sea masking via NaNs #140
 * Grids can be specified as template .nc files, where the NaNs in the template will also mask the regridded output from KAPy #141
+* Area statistics work with non lon-lat projections - the shapefile just needs to be in the same projection as the output format. The `regionmask` package is dropped from the dependencies. #139
 
 ## Breaking Changes
 * Removed time-binning for months #81

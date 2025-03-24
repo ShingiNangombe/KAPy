@@ -16,7 +16,6 @@ inFile=wf['ensstats'][ensID]
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
-import regionmask
 import numpy as np
 import os
 from cdo import Cdo
@@ -37,6 +36,9 @@ def generateArealstats(config, inFile, outFile):
         tCoord='periodID'
     else:
         raise ValueError(f'Cannot find time or periodID coordinate in "{inFile[0]}".')
+    
+    #And the space coordinates
+    spDims =list(set(thisDat.dims)-set(['time','periodID',"seasonID",'percentiles']))
 
     # If using area weighting, get the pixel size
     if config['arealstats']['useAreaWeighting']:
@@ -49,33 +51,39 @@ def generateArealstats(config, inFile, outFile):
 
     # If we have a shapefile defined, then work with it
     if config['arealstats']['shapefile']!='':
-        #Import shapefile
-        shapefile = gpd.GeoDataFrame.from_file(config['arealstats']['shapefile'])
+        #Import shapefile and drop CRS
+        shapefile = gpd.read_file(config['arealstats']['shapefile'])
+        shapefile.crs=None
 
-        #Setup mask
-        maskRegions=regionmask.from_geopandas(shapefile,
-                                       names=config['arealstats']['idColumn'],
-                                       abbrevs=config['arealstats']['idColumn'],
-                                       name='test')
-        maskRaster=maskRegions.mask_3D_frac_approx(thisDat)
+        #Use geopandas as the base for this computation. We use the 
+        #pxlSize as the basis for this
+        pxlDf = pxlSize.to_dataframe().reset_index()
+        pxlGdf = gpd.GeoDataFrame(pxlDf.indicator,
+                               geometry=gpd.points_from_xy(pxlDf[spDims[1]],pxlDf[spDims[0]]))
 
-        #Apply masking and weighting and calculate
-        wtThis=maskRaster*pxlSize
-        statDims=set(thisDat.dims) - set(['region','periodID','time',"seasonID",'percentiles'])
-        wtMean = thisDat.weighted(wtThis).mean(dim=statDims)
-        wtMean.name='mean'
-        wtSd = thisDat.weighted(wtThis).std(dim=statDims)
-        wtSd.name='sd'
+        #Loop over polygons
+        outList=[]
+        for thisIdx, thisArea in shapefile.iterrows():
+            #Which points are in the polygon? Setup a mask
+            pxlDf['inPoly'] = pxlGdf.within(thisArea.geometry)
+            pxlMask=pxlDf.set_index(spDims).to_xarray()
+            pxlWts=pxlMask.inPoly*pxlSize
+            
+            #Apply masking and weighting and calculate
+            wtMeanDf = thisDat.weighted(pxlWts).mean(dim=spDims).to_dataframe().reset_index()
+            wtMeanDf['statistic']='mean'
+            wtSdDf = thisDat.weighted(pxlWts).std(dim=spDims).to_dataframe().reset_index()
+            wtSdDf['statistic']='sd'
 
-        #Output object
-        dfOut=xr.merge([wtMean,wtSd]).to_dataframe()
-        dfOut=dfOut.rename(columns={'names':'area'})
-        dfOut=dfOut.drop(columns=['abbrevs'])
+            #Output object
+            thisOut=pd.concat([wtMeanDf,wtSdDf])
+            thisOut['areaID'] =thisArea[config['arealstats']['idColumn']] 
+            outList += [thisOut]
+        dfOut=pd.concat(outList)
 
     #Otherwise, just average spatially
     else:
         # Average spatially over the time dimension
-        spDims =set(thisDat.dims)-set(['time','periodID',"seasonID",'percentiles'])
         spMean = thisDat.weighted(pxlSize).mean(dim=spDims)
         spMeanDf=spMean.to_dataframe()
         spMeanDf['statistic']='mean'
@@ -85,7 +93,7 @@ def generateArealstats(config, inFile, outFile):
 
         # Save files pandas
         dfOut = pd.concat([spMeanDf,spSdDf])
-        dfOut["area"] = "all"  
+        dfOut["areaID"] = "all"  
 
     #Write out date without time for easier handling
     dfOut=dfOut.reset_index()

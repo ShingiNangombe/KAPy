@@ -27,7 +27,6 @@ dependencies:
   - python
   - python-cdo
   - python_cmethods
-  - regionmask
   - snakemake
   - xarray
   - xesmf
