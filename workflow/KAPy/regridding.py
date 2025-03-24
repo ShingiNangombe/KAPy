@@ -45,7 +45,7 @@ def regrid(config, inFile, outFile):
         for var in ['indicator','delta']:
             for tID in np.arange(thisDat[tCoord].size):
                 for sID in np.arange(thisDat.seasonID.size):
-                    d=thisDat[var].isel(periodID=tID,seasonID=sID)
+                    d=thisDat[var].isel({tCoord:tID,"seasonID":sID})
                     dDf=d.to_dataframe()
                     valuesDf=dDf[~np.isnan(dDf[var])]
                     xVals=d[d.dims[1]].values
