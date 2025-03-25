@@ -15,7 +15,7 @@ inFile=wf['regridded'][outFile[0]]
 
 import xarray as xr
 import numpy as np
-import scipy.interpolate as scipinp
+import scipy as sp
 import xesmf as xe
 from . import helpers
 
@@ -45,13 +45,18 @@ def regrid(config, inFile, outFile):
         for var in ['indicator','delta']:
             for tID in np.arange(thisDat[tCoord].size):
                 for sID in np.arange(thisDat.seasonID.size):
+                    # Extract data. Skip if all NaNs
                     d=thisDat[var].isel({tCoord:tID,"seasonID":sID})
+                    if d.isnull().all().values:
+                        continue
+                    #Extract non-nan values
                     dDf=d.to_dataframe()
                     valuesDf=dDf[~np.isnan(dDf[var])]
+                    #Perform interpolation / extrapolation
                     xVals=d[d.dims[1]].values
                     yVals=d[d.dims[0]].values
                     yGrd, xGrd = np.meshgrid(yVals, xVals, indexing='ij')
-                    grd = griddata(np.array(valuesDf.index.to_list()),
+                    grd = sp.interpolate.griddata(np.array(valuesDf.index.to_list()),
                                     valuesDf[var].to_numpy(),
                                     (yGrd,xGrd),
                                     method='nearest')
