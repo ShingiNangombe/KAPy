@@ -69,8 +69,8 @@ def regrid(config, inFile, outFile):
         refGrd=xr.open_dataarray(config["outputGrid"]["path"])
     else:
         #Use the CDO griddes to make one
-        cdo=Cdo()
-        refGrd=cdo.const(42,config["outputGrid"]["path"], 
+        cdo=Cdo(tempdir=config['dirs']['tempDir'])
+        refGrd=cdo.const(42,config["outputGrid"]["path"],
                             returnXArray='const')
 
     # Apply regriddinng
@@ -86,7 +86,7 @@ def regrid(config, inFile, outFile):
     regrdded=regrdr(thisDat,keep_attrs=True)
 
     #Mask output
-    out=xr.where(np.isnan(refGrd),np.nan,regrdded)
+    out=regrdded.where(~ np.isnan(refGrd),np.nan)
 
     #Write output
     out.to_netcdf(outFile[0])
