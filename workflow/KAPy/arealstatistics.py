@@ -42,12 +42,13 @@ def generateArealstats(config, inFile, outFile):
 
     # If using area weighting, get the pixel size
     if config['arealstats']['useAreaWeighting']:
-        cdo=Cdo()
+        cdo=Cdo(tempdir=config['dirs']['tempDir'])
         pxlSize=cdo.gridarea(input=thisDat.indicator.isel({tCoord:0,"seasonID":0},drop=True),
                              returnXArray='cell_area')
     else:
         pxlSize=thisDat[{tCoord:0,"seasonID":0}].indicator
         pxlSize.values[:]=1
+        pxlSize.name="cell_area"
 
     # If we have a shapefile defined, then work with it
     if config['arealstats']['shapefile']!='':
@@ -58,7 +59,7 @@ def generateArealstats(config, inFile, outFile):
         #Use geopandas as the base for this computation. We use the 
         #pxlSize as the basis for this
         pxlDf = pxlSize.to_dataframe().reset_index()
-        pxlGdf = gpd.GeoDataFrame(pxlDf.indicator,
+        pxlGdf = gpd.GeoDataFrame(pxlDf.cell_area,
                                geometry=gpd.points_from_xy(pxlDf[spDims[1]],pxlDf[spDims[0]]))
 
         #Loop over polygons
