@@ -14,15 +14,16 @@ inFile=wf['regridded'][outFile[0]]
 """
 
 import xarray as xr
+from cdo import Cdo 
 import numpy as np
 import scipy as sp
 import xesmf as xe
 from . import helpers
 
 def regrid(config, inFile, outFile):
-    # Currently only works for 'file' regridding. Other engines such as xesmf could be supported in the future
-    if not config["outputGrid"]["templateType"] == "file":
-        raise ValueError("Regridding options are currently limited to `file`. See documentation")
+    # Check regridding approach is valid
+    if not config["outputGrid"]["templateType"] in ["file","cdo"]:
+        raise ValueError("Regridding options are currently limited to `file` or `cdo`. See documentation")
 
     # Setup input files
     # ------------------
@@ -36,7 +37,7 @@ def regrid(config, inFile, outFile):
         tCoord='periodID'
     else:
         raise ValueError(f'Cannot find time or periodID coordinate in "{inFile[0]}".')
-
+    
     # Fill in the NaNs before regridding, to avoid bleeding from the surroundings
     # This is a bit work - we use scipy's griddata routine for regridding
     # of irregular data, as there is not really anything corresponding in xarray unfortunately.
@@ -62,8 +63,15 @@ def regrid(config, inFile, outFile):
                                     method='nearest')
                     thisDat[var].values[tID,sID]=grd
 
-    #Setup reference grid
-    refGrd=xr.open_dataarray(config["outputGrid"]["path"])
+    #Setup the reference grid, either by importing the file, or generating it with CDO
+    if config["outputGrid"]["templateType"] == "file":
+        #Import reference file directly
+        refGrd=xr.open_dataarray(config["outputGrid"]["path"])
+    else:
+        #Use the CDO griddes to make one
+        cdo=Cdo()
+        refGrd=cdo.const(42,config["outputGrid"]["path"], 
+                            returnXArray='const')
 
     # Apply regriddinng
     # ------------------

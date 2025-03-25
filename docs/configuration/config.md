@@ -39,9 +39,9 @@
   - **`centralPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
   - **`lowerPercentile`** *(integer, required)*: Exclusive minimum: `0`. Exclusive maximum: `100`.
 - **`outputGrid`** *(object, required)*: Defines the common output grid onto which KAPy interpolates all indicators before calculating ensemble statistics. Can be disabled by setting `templateType` to `none`. . Cannot contain additional properties.
-  - **`templateType`** *(string, required)*: Type of template to use to specify the output grid. Selecting `none` will disable regridding. Selecting `file` will use an existing NetCDF file as the template. Must be one of: `["none", "file"]`.
+  - **`templateType`** *(string, required)*: Type of template to use to specify the output grid. Selecting `none` will disable regridding. Selecting `file` will use an existing NetCDF file as the template. `cdo` uses a CDO grid descriptor file as the template. Must be one of: `["none", "cdo", "file"]`.
   - **`gridName`** *(string, required)*: String giving the name of the grid to be used in regridding filenames.
   - **`method`** *(string, required)*: Method used by the xESMF Regridder function to do the regridding. See documentaiton for xESMF for details. Must be one of: `["bilinear", "conservative", "conservative_normed", "patch", "nearest_s2d", "nearest_d2s"]`.
-  - **`path`** *(string, required)*: Path to the file to be used as a template.
+  - **`path`** *(string, required)*: Path to the file to be used as a template, in the case of a `file` templateType, or the cdo grid descriptor, in the case of `cdo` templateType.
 - **`processing`** *(object, required)*: Cannot contain additional properties.
   - **`picklePrimaryVariables`** *(boolean, required)*: Should the the primary variables be stored as 'pickled' xarray objects (`True`) or written out to disk as NetCDF files (`False`).

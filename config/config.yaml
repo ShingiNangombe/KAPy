@@ -38,7 +38,7 @@ ensembles:
     centralPercentile: 50
     lowerPercentile: 10
 outputGrid:
-    templateType: 'file'
+    templateType: 'cdo'
     gridName: 'Ghana025'
     method: 'bilinear'
     path: 'config/griddes.txt'
