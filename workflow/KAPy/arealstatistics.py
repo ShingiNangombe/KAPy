@@ -43,7 +43,7 @@ def generateArealstats(config, inFile, outFile):
     # If using area weighting, get the pixel size
     if config['arealstats']['useAreaWeighting']:
         cdo=Cdo()
-        pxlSize=cdo.gridarea(input=thisDat[{tCoord:0,"seasonID":0}].indicator,
+        pxlSize=cdo.gridarea(input=thisDat.indicator.isel({tCoord:0,"seasonID":0},drop=True),
                              returnXArray='cell_area')
     else:
         pxlSize=thisDat[{tCoord:0,"seasonID":0}].indicator
