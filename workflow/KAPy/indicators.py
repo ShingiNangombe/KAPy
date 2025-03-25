@@ -9,15 +9,14 @@ os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
 indID='101'
-outFile=[next(iter(wf['indicators'][indID]))]
-inFile=wf['indicators'][indID][outFile[0]]
+outFile=list(wf['indicators'][indID])[0]
+inFile=wf['indicators'][indID][outFile]
 %matplotlib inline
 """
 
 import xarray as xr
 import xclim as xc
 import numpy as np
-import sys
 import cftime
 import json
 import pandas as pd
@@ -64,21 +63,30 @@ def calculateIndicators(config, inFile, outFile, indID):
         periodSlices = []
         for thisPeriod in config["periods"].values():
             # Slice dataset by time
+            # It is possible that we end with an empty slice at this stage e.g. when
+            # working with observations, but with time slices in the future. We handle
+            # that case further one, as we still want empty slices returned
             datPeriod=helpers.timeslice(thisDat,thisPeriod["start"],thisPeriod["end"])
 
             #Loop over seasons
             seasonSlices=[]
             for thisSeason in indSeasons:
-                #Filter data by season
-                theseMonths = config["seasons"][thisSeason]["months"]
-                datPeriodSeason = datPeriod.sel(time=np.isin(datPeriod.time.dt.month, theseMonths))
+                # If datPeriod is already empty, then trying to filter by months will
+                # just cause things to break. So, only filter data by season if there
+                # is something to filter
+                if datPeriod.time.size !=0:
+                    theseMonths = config["seasons"][thisSeason]["months"]
+                    datPeriodSeason = datPeriod.sel(time=np.isin(datPeriod.time.dt.month, theseMonths))
+                    #Test for an empty slice
+                    mtSlice=(datPeriodSeason.time.size == 0)
+                else:
+                    mtSlice=True
 
                 # If there is nothing left, we want a result all the same so that we
                 # can put it in the outputs. We copy the structure and populate
                 # it with NaNs
-                if datPeriodSeason.time.size == 0:
-                    res = thisDat.isel(time=0)
-                    res=res.drop_vars("time")
+                if mtSlice:
+                    res = thisDat.isel(time=0,drop=True)
                     res.data[:] = np.nan
                 # Else apply the operator
                 else:
