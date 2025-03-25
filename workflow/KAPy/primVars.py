@@ -161,9 +161,13 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 		#We also apply a little trick here, by forcing everything to be stored as
 		#netcdf "float" types as well.
 		daFloat=da.astype(np.float32)
+		#Set chunking
+		defaultChunks=[256,16,16]
+		chunkThisWay=[min(defaultChunks[i],daFloat.shape[i]) for i in range(0,3)]
+		
 		#Now use the chunking scheme as the basis for writing out the encoding
 		daFloat.to_netcdf(outFile[0],
-					encoding={thisInp["varID"]:{'chunksizes':[256,16,16],
+					encoding={thisInp["varID"]:{'chunksizes':chunkThisWay,
 							   'zlib': True,
 							   'complevel':1}})
 
