@@ -8,11 +8,12 @@ config=KAPy.getConfig("./config/config.yaml")
 wf=KAPy.getWorkflow(config)
 outFile=[next(iter(wf['ensstats'].keys()))]
 inFiles=wf['ensstats'][outFile[0]]
+%matplotlib inline
 """
 
 import xarray as xr
 import xclim.ensembles as xcEns
-
+import numpy as np
 
 def generateEnsstats(config, inFiles, outFile):
     # Setup the ensemble
@@ -27,6 +28,11 @@ def generateEnsstats(config, inFiles, outFile):
                                 combine="nested",
                                 coords="all",
                                 use_cftime=True)
+
+    #Calculate number of ensemble members at each point
+    ensN=(~np.isnan(thisEns)).sum(dim="realization")
+    ensN=ensN.rename({"indicator": "indicator_n","delta":"delta_n"})
+    
     # Calculate the statistics
     ensStats = xcEns.ensemble_mean_std_max_min(thisEns)
 
@@ -40,5 +46,5 @@ def generateEnsstats(config, inFiles, outFile):
         ensPercs=ensPercs.transpose("time","seasonID","percentiles",...)
 
     # Write results
-    ensOut = xr.merge([ensStats, ensPercs])
+    ensOut = xr.merge([ensStats, ensPercs,ensN])
     ensOut.to_netcdf(outFile[0])
