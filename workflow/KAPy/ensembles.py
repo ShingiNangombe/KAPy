@@ -22,12 +22,14 @@ def generateEnsstats(config, inFiles, outFile):
     # two approachs. Previously we have used the create_ensemble from xclim.ensembles
     # However, this is quite fancy, and does a lot of logic about calendars that
     # create further problems. It also doesn't seem to handle cftime calendars at all well
-    # Instead, we do it by directly opening the files with open_mfdataset. 
+    # Instead, we do it by directly opening the files with open_mfdataset, and then
+    # loading it into ram
     thisEns = xr.open_mfdataset(inFiles, 
                                 concat_dim="realization", 
                                 combine="nested",
                                 coords="all",
                                 use_cftime=True)
+    thisEns=thisEns.compute()
 
     #Calculate number of ensemble members at each point
     ensN=(~np.isnan(thisEns)).sum(dim="realization")
@@ -37,9 +39,8 @@ def generateEnsstats(config, inFiles, outFile):
     ensStats = ensembles.ensemble_mean_std_max_min(thisEns)
 
     #Calculate the percentiles and transpose to a more friendly order
-    ensPercs = ensembles.ensemble_percentiles(
-        thisEns, split=False, values=[x for x in config["ensembles"].values()]
-    )
+    ptileList=sorted([x for x in config["ensembles"].values()])
+    ensPercs = ensembles.ensemble_percentiles(thisEns, split=False, values=ptileList)
     if "periodID" in ensPercs.indicator.dims:
         ensPercs=ensPercs.transpose("periodID","seasonID","percentiles",...)
     else:
