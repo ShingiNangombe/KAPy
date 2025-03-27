@@ -10,6 +10,7 @@
 ## Breaking Changes
 * Removed time-binning for months #81
 * Addition of deltaType argument in indicator configuration table requires adjustments to this file.
+* Variable in ensstats output files renamed to indicator_percentiles (and delta_percentiles). #144
 
 ## Major Changes
 

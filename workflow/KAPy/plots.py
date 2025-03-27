@@ -66,7 +66,7 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
     # Now merge into dataframe and pivot for plotting
     pltLong = pd.merge(datdf, ptileTbl, on="percentiles", how="left")
     pltDatWide = pltLong.pivot_table(
-        index=["lbl", "periodID","seasonID","statistic"], columns="ptileLbl", values="indicator"
+        index=["lbl", "periodID","seasonID","statistic"], columns="ptileLbl", values="indicator_percentiles"
     ).reset_index()
 
     # Filter remaining data

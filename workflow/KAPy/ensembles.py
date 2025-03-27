@@ -44,6 +44,7 @@ def generateEnsstats(config, inFiles, outFile):
         ensPercs=ensPercs.transpose("periodID","seasonID","percentiles",...)
     else:
         ensPercs=ensPercs.transpose("time","seasonID","percentiles",...)
+    ensPercs=ensPercs.rename({"indicator": "indicator_percentiles","delta":"delta_percentiles"})
 
     # Write results
     ensOut = xr.merge([ensStats, ensPercs,ensN])

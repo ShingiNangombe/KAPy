@@ -8,8 +8,8 @@ import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-ensID=list(wf['ensstats'].keys())[0]
-inFile=wf['ensstats'][ensID]
+asID=list(wf['arealstats'].keys())[0]
+inFile=wf['arealstats'][asID]
 %matplotlib inline
 """
 
@@ -37,16 +37,18 @@ def generateArealstats(config, inFile, outFile):
     else:
         raise ValueError(f'Cannot find time or periodID coordinate in "{inFile[0]}".')
     
-    #And the space coordinates
+    #Identify coordinate types. Some logic is required here, as the coordinates
+    #presented can vary based on time_binning and whether it is an ensemble stat or member
     spDims =list(set(thisDat.dims)-set(['time','periodID',"seasonID",'percentiles']))
+    nonspDims=list(set(thisDat.dims)-set(spDims))
+    spGrid=thisDat.isel({k : 0 for k in nonspDims},drop=True)[list(thisDat.data_vars)[0]]
 
     # If using area weighting, get the pixel size
     if config['arealstats']['useAreaWeighting']:
         cdo=Cdo(tempdir=config['dirs']['tempDir'])
-        pxlSize=cdo.gridarea(input=thisDat.indicator.isel({tCoord:0,"seasonID":0},drop=True),
-                             returnXArray='cell_area')
+        pxlSize=cdo.gridarea(input=spGrid,returnXArray='cell_area')
     else:
-        pxlSize=thisDat[{tCoord:0,"seasonID":0}].indicator
+        pxlSize=spGrid
         pxlSize.values[:]=1
         pxlSize.name="cell_area"
 
