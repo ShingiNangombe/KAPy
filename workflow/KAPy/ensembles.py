@@ -12,7 +12,7 @@ inFiles=wf['ensstats'][outFile[0]]
 """
 
 import xarray as xr
-import xclim as xc
+from xclim import ensembles
 import numpy as np
 
 def generateEnsstats(config, inFiles, outFile):
@@ -34,10 +34,10 @@ def generateEnsstats(config, inFiles, outFile):
     ensN=ensN.rename({"indicator": "indicator_n","delta":"delta_n"})
     
     # Calculate the statistics
-    ensStats = xc.ensembles.ensemble_mean_std_max_min(thisEns)
+    ensStats = ensembles.ensemble_mean_std_max_min(thisEns)
 
     #Calculate the percentiles and transpose to a more friendly order
-    ensPercs = xc.ensembles.ensemble_percentiles(
+    ensPercs = ensembles.ensemble_percentiles(
         thisEns, split=False, values=[x for x in config["ensembles"].values()]
     )
     if "periodID" in ensPercs.indicator.dims:
