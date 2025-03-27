@@ -12,7 +12,7 @@ inFiles=wf['ensstats'][outFile[0]]
 """
 
 import xarray as xr
-import xclim.ensembles as xcEns
+import xclim as xc
 import numpy as np
 
 def generateEnsstats(config, inFiles, outFile):
@@ -34,10 +34,10 @@ def generateEnsstats(config, inFiles, outFile):
     ensN=ensN.rename({"indicator": "indicator_n","delta":"delta_n"})
     
     # Calculate the statistics
-    ensStats = xcEns.ensemble_mean_std_max_min(thisEns)
+    ensStats = xc.ensembles.ensemble_mean_std_max_min(thisEns)
 
     #Calculate the percentiles and transpose to a more friendly order
-    ensPercs = xcEns.ensemble_percentiles(
+    ensPercs = xc.ensembles.ensemble_percentiles(
         thisEns, split=False, values=[x for x in config["ensembles"].values()]
     )
     if "periodID" in ensPercs.indicator.dims:
@@ -46,6 +46,8 @@ def generateEnsstats(config, inFiles, outFile):
         ensPercs=ensPercs.transpose("time","seasonID","percentiles",...)
     ensPercs=ensPercs.rename({"indicator": "indicator_percentiles","delta":"delta_percentiles"})
 
-    # Write results
+    # Combine results, sort and write
     ensOut = xr.merge([ensStats, ensPercs,ensN])
+    sorted_vars = sorted(ensOut.data_vars)  # Get sorted variable names
+    ensOut = ensOut[sorted_vars]  # Reorder dataset
     ensOut.to_netcdf(outFile[0])
