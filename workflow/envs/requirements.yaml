@@ -1,24 +1,44 @@
-# This YAML file defines the basic requirements needed by KAPy. Note that it is
+# This YAML file defines the requirements used in KAPy.
+#
+# KAPy works with two environments - one base environment for production, and another
+# for production. The creation of these enviroment is best handled together, to ensure
+# that we don't hit problems with dependencies or differences between the two environments. 
+#
+# This YAML file defines all requirements needed by KAPy. Note that it is
 # specified without version numbers, so that the very latested versions of each
-# package can be used. It's counterpart file is env.yaml, which has the exact
+# package can be used. It's counterpart file is env.yaml and dev.yaml, which have the exact
 # version numbers used in a specific installation of KAPy.
 #
-# This file can be used to generate a fresh conda environment like so:
+# The basic approach is to first create an environment encompassing all packages, and then
+# removed what is not needed afterwards, to create the base environment. This works as follows.
 #
 # conda env create -f requirements.yaml
 #
+# The resulting environment, called KAPy, with all dependencies and version numbers can then 
+# exported back to dev.yaml like so:
+#
+# conda env export > dev.yaml
+#
+# To make the KAPy production environment, we clone the KAPy environment:
+#
+# conda create --name KAPy --clone KAPy-dev
+#
+# Next, switch to the new environment, and then remove the unnecessary packages - these
+# are listed below the line in the requirements
+#
+# conda activate KAPy
+# conda remove black ipykernel jsonschema2md
+#
 # The resulting environment with all dependencies and version numbers can then 
-# exported back to env.yaml like so:
+# exported back to dev.yaml like so:
 #
 # conda env export > env.yaml
 #
-# A third yaml file, dev.yaml, contains an environment used for development purposes
-#
-name: KAPy
+name: KAPy-dev
 channels:
   - bioconda
   - conda-forge
-  - defaults
+  - nodefaults
 dependencies:
   - geopandas
   - netcdf4
@@ -33,3 +53,8 @@ dependencies:
   - xclim
   - yaml
   - zarr
+  # ----- Dev packages below this line ----------
+  - black   #Linting
+  - ipykernel  #Used by vscode to enable interactive debugging
+  - jsonschema2md #Convert jsonschema to markdown documentation
+    #  - pyqt   #Interactive plotting in vscode
