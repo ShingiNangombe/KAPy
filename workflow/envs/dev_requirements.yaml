@@ -23,7 +23,7 @@ name: KAPy-dev
 channels:
   - bioconda
   - conda-forge
-  - defaults
+  - nodefaults
 dependencies:
   - black   #Linting
   - ipykernel  #Used by vscode to enable interactive debugging
