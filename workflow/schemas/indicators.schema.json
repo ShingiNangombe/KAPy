@@ -65,7 +65,7 @@
         "divide"]
     },
     "statistic": {
-      "description": "Statistic to be used to calculate the indicator. KAPy has three basic types of indicators built in. 1) `mean` calculates an average across the period. 2)`count` counts the number of days in the period above or below a threshold. Additional parameters must be supplied via the `additionalArgs` field: `threshold` is the threshold value, and `op` is the comparison operator - one of `>`,`gt`,`<`,`lt`,  `>=`, `ge`, `<=` or `le`.  3) `custom` calls the function defined in `customScriptPath` and `customScriptFunction` and utilised arguments supplied as a dictionary in `additionalArgs`.",
+      "description": "Statistic to be used to calculate the indicator. KAPy has three basic types of indicators built in. 1) `mean` calculates an average across the period. 2)`count` calculates the average number of days per year in the period above or below a threshold. Additional parameters must be supplied via the `additionalArgs` field: `threshold` is the threshold value, and `op` is the comparison operator - one of `>`,`gt`,`<`,`lt`,  `>=`, `ge`, `<=` or `le`.  3) `custom` calls the function defined in `customScriptPath` and `customScriptFunction` and utilised arguments supplied as a dictionary in `additionalArgs`.",
       "type": "string",
       "enum": [
         "custom",

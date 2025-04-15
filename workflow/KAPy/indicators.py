@@ -8,7 +8,7 @@ import KAPy.helpers as helpers
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-indID='101'
+indID='i010'
 outFile=list(wf['indicators'][indID])[0]
 inFile=wf['indicators'][indID][outFile]
 %matplotlib inline
@@ -52,7 +52,7 @@ def calculateIndicators(config, inFile, outFile, indID):
             comp = xc.indices.generic.compare(left=d,
                                              op=args['op'],
                                              right=float(args['threshold']))
-            res=comp.sum(dim='time')
+            res=comp.groupby("time.year").sum().mean(dim="year")
         elif thisStat=="custom":
             #Use a custom function
             custFn=helpers.getExternalFunction(thisInd["customScriptPath"],
