@@ -1,10 +1,8 @@
-# Given a set of input files, create datachunk objects that can be worked with
-
 """
 #Setup for debugging with VS Code 
 import os
 print(os.getcwd())
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")
@@ -20,7 +18,7 @@ def getWorkflow(config):
     """
     Get Workflow setup
 
-    Generates a series of dicts describing the workflow dependencies of this configuration
+    Generates a description of the workflow dependencies of this configuration
     """
     # Extract specific configurations
     inp = config["inputs"]
@@ -43,14 +41,22 @@ def getWorkflow(config):
         if len(inpTbl)==0:
             sys.exit(f'No files found for input path "{thisInp["path"]}"')
         
-        # If we only get one file, then there's not really much to do - we're
-        # going to use that file more or less directly. Handle that case first.
+        # If we only get one file, then there's not really much to do - that file
+        # is the only member of the ensemble and we use it more or less directly
+        # Handle that case first.
         elif len(inpTbl)==1:
             #Set output filename, setting the file extension manually.
             pvTbl=inpTbl
             pvTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_no-expt_" + \
-                    os.path.splitext(pvTbl['inFname'][0])[0] + '.nc'
+                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
+
+        # A similar case also exists where there is a single ensemble member, but it
+        # is spread across multiple files. This is indicated when the ensMemberFields
+        # are empty
+        elif thisInp['ensMemberFields']==['']:
+            pvTbl=inpTbl
+            pvTbl['pvFname']= \
+                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_noExpt_noEnsembleID.nc"
 
         # Else multiple hits detected that need to be handled.
         else:
@@ -152,7 +158,7 @@ def getWorkflow(config):
         thisTbl["varID"] = thisTbl["fname"].str.extract("^([^_]+)_.*$")
         thisTbl["srcID"] = thisTbl["fname"].str.extract("^[^_]+_([^_]+)_.*$")
         thisTbl["gridID"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_([^_]+)_.*$")
-        thisTbl["expt"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$")
+        thisTbl["expt"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_.]+).*$")
         thisTbl["stems"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.+).nc(?:.pkl)?$")
         return thisTbl
 
@@ -165,20 +171,16 @@ def getWorkflow(config):
             # Now filter by the input variables needed for this derived variable
             selThese = [v in thisSV["inputVars"] for v in varPal["varID"]]
             longSVTbl = varPal[selThese]
-            try:
-                if longSVTbl.size == 0:
-                    raise ValueError(
-                        f"Cannot find any matching input files for {thisSV['name']}. "
-                        + "Check the definition again. Also check the order of definition."
-                    )
-            except ValueError as e:
-                print("Error:", e)
+            if longSVTbl.size == 0:
+                    raise ValueError(f"Cannot find any input variables for {thisSV['id']}. ")
 
             # Pivot and retain only those in common
             svTbl = longSVTbl.pivot(
                 index=["srcID","gridID","expt", "stems"], columns="varID", values="path"
             )
             svTbl = svTbl.dropna().reset_index()
+            if svTbl.size == 0:
+                raise ValueError(f"Cannot find any matching input variables for {thisSV['id']}. ")
 
             # Now we have a list of valid files that can be made. Store the results
             svTbl['outFile'] = [
