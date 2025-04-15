@@ -27,7 +27,7 @@
 # are listed below the line in the requirements
 #
 # conda activate KAPy
-# conda remove black ipykernel jsonschema2md
+# conda remove black ipykernel jsonschema2md nc-time-axis
 #
 # The resulting environment with all dependencies and version numbers can then 
 # exported back to dev.yaml like so:
@@ -57,4 +57,4 @@ dependencies:
   - black   #Linting
   - ipykernel  #Used by vscode to enable interactive debugging
   - jsonschema2md #Convert jsonschema to markdown documentation
-    #  - pyqt   #Interactive plotting in vscode
+  - nc-time-axis   #Plotting of cftime-axes in matplotlib
