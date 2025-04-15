@@ -2,9 +2,9 @@
 #Setup for debugging with VS code
 import os
 print(os.getcwd())
-import helpers as helpers
 os.chdir("..")
 import KAPy
+import KAPy.helpers as helpers
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
@@ -53,6 +53,11 @@ def calculateIndicators(config, inFile, outFile, indID):
                                              op=args['op'],
                                              right=float(args['threshold']))
             res=comp.sum(dim='time')
+        elif thisStat=="custom":
+            #Use a custom function
+            custFn=helpers.getExternalFunction(thisInd["customScriptPath"],
+                                               thisInd["customScriptFunction"])
+            res = custFn(d)  
         else:
             raise ValueError(f"Unknown indicator statistic, '{thisStat}'")
         return(res)
@@ -107,9 +112,9 @@ def calculateIndicators(config, inFile, outFile, indID):
 
         #Tidy metadata
         dout.periodID.attrs["name"] = "periodID"
-        dout.periodID.attrs["period_table"]= json.dumps(config['periods'])
+        dout.attrs["periodID_dict"]= json.dumps(config['periods'])
         dout.seasonID.attrs["name"] = "seasonID"
-        dout.seasonID.attrs["season_table"] = json.dumps(config['seasons'])
+        dout.attrs["seasonID_dict"] = json.dumps(config['seasons'])
 
     # Time binning by years
     # ----------------------------
@@ -139,7 +144,7 @@ def calculateIndicators(config, inFile, outFile, indID):
 
         #Tidy metadata
         dout.seasonID.attrs["name"] = "seasonID"
-        dout.seasonID.attrs["season_table"] = json.dumps(config['seasons'])
+        dout.attrs["seasonID_dict"] = json.dumps(config['seasons'])
 
         # Round time to the first day of the year. This ensures that everything
         # has an identical datetime, regardless of the calendar being used.
