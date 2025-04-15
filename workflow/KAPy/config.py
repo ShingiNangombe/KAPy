@@ -145,9 +145,12 @@ def validateConfig(config):
         for requestSeason in thisrw["seasons"]:
             if not (requestSeason in validSeasons):
                 raise ValueError(f"Unknown season '{requestSeason}' requested for indicator '{thisrw["id"]}'.")
+            
+    # If the temporary directory doesn't exist, create it
+    if not os.path.exists(config['dirs']['tempDir']):
+        os.makedirs(config['dirs']['tempDir'])
 
     return config
-
 
 def getConfig(configfile):
     """
