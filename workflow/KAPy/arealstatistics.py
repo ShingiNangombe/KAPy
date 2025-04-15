@@ -74,9 +74,9 @@ def generateArealstats(config, inFile, outFile):
             
             #Apply masking and weighting and calculate
             wtMeanDf = thisDat.weighted(pxlWts).mean(dim=spDims).to_dataframe().reset_index()
-            wtMeanDf['statistic']='mean'
+            wtMeanDf['arealStatistic']='mean'
             wtSdDf = thisDat.weighted(pxlWts).std(dim=spDims).to_dataframe().reset_index()
-            wtSdDf['statistic']='sd'
+            wtSdDf['arealStatistic']='sd'
 
             #Output object
             thisOut=pd.concat([wtMeanDf,wtSdDf])
@@ -89,10 +89,10 @@ def generateArealstats(config, inFile, outFile):
         # Average spatially over the time dimension
         spMean = thisDat.weighted(pxlSize).mean(dim=spDims)
         spMeanDf=spMean.to_dataframe()
-        spMeanDf['statistic']='mean'
+        spMeanDf['arealStatistic']='mean'
         spSd = thisDat.weighted(pxlSize).std(dim=spDims)
         spSdDf=spSd.to_dataframe()
-        spSdDf['statistic']='sd'
+        spSdDf['arealStatistic']='sd'
 
         # Save files pandas
         dfOut = pd.concat([spMeanDf,spSdDf])

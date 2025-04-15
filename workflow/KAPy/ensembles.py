@@ -7,8 +7,8 @@ import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-outFile=list(wf['ensstats'].keys())[7]
-inFiles=wf['ensstats'][outFile]
+outFile=[list(wf['ensstats'].keys())[7]]
+inFiles=wf['ensstats'][outFile[0]]
 %matplotlib inline
 """
 
@@ -54,9 +54,12 @@ def generateEnsstats(config, inFiles, outFile):
     ensMin=renameEnsStats(ensMin,"min")
 
     #Calculate the percentiles and transpose to a more friendly order
-    ptileList=sorted([x/100 for x in config["ensembles"].values()])
-    ensPercs=thisEns.quantile(q=ptileList, dim='realization',keep_attrs=True)
+    ptileList=sorted([x for x in config["ensembles"].values()])
+    qtileList=[x/100 for x in ptileList]
+    ensPercs=thisEns.quantile(q=qtileList, dim='realization',keep_attrs=True)
     ensPercs=ensPercs.rename({"quantile":"percentiles"})
+    ensPercs=ensPercs.assign_coords(percentiles=ptileList)
+    
     if "periodID" in ensPercs.indicator.dims:
         ensPercs=ensPercs.transpose("periodID","seasonID","percentiles",...)
     else:

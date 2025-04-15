@@ -3,11 +3,12 @@
 #Debugging setup for VS Code
 import os
 print(os.getcwd())
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
+%matplotlib inline
 """
 
 from plotnine import *
@@ -25,8 +26,8 @@ matplotlib.use('Agg')
 
 # Boxplot---------------------------------------------------------------------------
 """
-indID='101'
-outFile='outputs/7.plots/101_boxplot.png'
+indID='i005'
+outFile='outputs/7.plots/i005_boxplot.png'
 srcFiles=wf['plots'][outFile]
 """
 
@@ -45,9 +46,14 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
         datIn["experiment"] = datIn["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$")
         dat += [datIn]
     datdf = pd.concat(dat)
-    datdf['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
+    datdf['lbl']=[ f"{rw['source']}-{rw['experiment']}" if rw['experiment']!='noExpt' else rw['source']
                   for idx,rw in datdf.iterrows()]
 
+    datdf['percentiles']=[x*100 if x < 1 else x for x in datdf['percentiles']]
+    
+    #Select a single areaID (the first
+    thisAreaID=datdf['areaID'].unique()[0]
+    datdf=datdf[datdf['areaID']==thisAreaID]
 
     # Get metadata from configuration
     ptileTbl = (
@@ -66,11 +72,12 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
     # Now merge into dataframe and pivot for plotting
     pltLong = pd.merge(datdf, ptileTbl, on="percentiles", how="left")
     pltDatWide = pltLong.pivot_table(
-        index=["lbl", "periodID","seasonID","statistic"], columns="ptileLbl", values="indicator_percentiles"
+        index=["lbl", "periodID","seasonID","arealStatistic"],
+        columns="ptileLbl", values="indicator_percentiles"
     ).reset_index()
 
     # Filter remaining data
-    pltDat=pltDatWide[pltDatWide['statistic']=='mean']
+    pltDat=pltDatWide[pltDatWide['arealStatistic']=='mean']
 
     # Now plot
     p = (
@@ -92,7 +99,7 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
         + labs(
             x="Period",
             y=f"Value ({thisInd['units']})",
-            title=f"{thisInd['name']} ",
+            title=f"{thisInd['name']} - AreaID {thisAreaID}",
             fill="",
         )
         + scale_x_discrete(labels=periodLblDict,    )
@@ -111,8 +118,8 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
 
 # Spatialplot -----------------------------------------------------------
 """
-indID='101'
-outFile='outputs/7.plots/101_spatial.png'
+indID='i005'
+outFile='outputs/7.plots/i005_spatial.png'
 srcFiles=wf['plots'][outFile]
 """
 def makeSpatialplot(config, indID, srcFiles, outFile=None):
@@ -133,7 +140,7 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
         firstlastdf["experiment"] = firstlastdf["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$")
         datdf += [firstlastdf]
     pltDat = pd.concat(datdf)
-    pltDat['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
+    pltDat['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='noExpt' else rw['source']
                   for idx,rw in pltDat.iterrows()]
 
     #Setup period labelling
@@ -145,8 +152,8 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
     pltDat['periodLbl']= [ periodLblDict[p] for p in pltDat['periodID']]
 
     #Identify spatial coordinates
-    spDimX=[d for d in pltDat.columns if d in ['x','longitude','long','lon','eastings']]
-    spDimY=[d for d in pltDat.columns if d in ['y','latitude','lat','northings']]
+    spDimX=[d for d in thisdat.indexes.keys() if d in ['x','longitude','long','lon','eastings']]
+    spDimY=[d for d in thisdat.indexes.keys()if d in ['y','latitude','lat','northings']]
     if len(spDimX)==0:
         raise ValueError("Cannot identify x-spatial coordinate.")
     if len(spDimY)==0:
