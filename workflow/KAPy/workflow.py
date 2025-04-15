@@ -56,7 +56,7 @@ def getWorkflow(config):
         elif thisInp['ensMemberFields']==['']:
             pvTbl=inpTbl
             pvTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_noExpt_noEnsembleID.nc"
+                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
 
         # Else multiple hits detected that need to be handled.
         else:
