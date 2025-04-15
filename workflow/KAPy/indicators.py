@@ -112,9 +112,7 @@ def calculateIndicators(config, inFile, outFile, indID):
 
         #Tidy metadata
         dout.periodID.attrs["name"] = "periodID"
-        dout.attrs["periodID_dict"]= json.dumps(config['periods'])
         dout.seasonID.attrs["name"] = "seasonID"
-        dout.attrs["seasonID_dict"] = json.dumps(config['seasons'])
 
     # Time binning by years
     # ----------------------------
@@ -144,7 +142,6 @@ def calculateIndicators(config, inFile, outFile, indID):
 
         #Tidy metadata
         dout.seasonID.attrs["name"] = "seasonID"
-        dout.attrs["seasonID_dict"] = json.dumps(config['seasons'])
 
         # Round time to the first day of the year. This ensures that everything
         # has an identical datetime, regardless of the calendar being used.
@@ -185,11 +182,15 @@ def calculateIndicators(config, inFile, outFile, indID):
 
     # Polish final product
     # ----------------------
+    #Merge into one object. Add attributes
     ds=xr.Dataset({'indicator':dout,'delta':deltaOut})
     ds.attrs = {}
     for thiskey in thisInd.keys():
         if thiskey != "files":
             ds.attrs[thiskey] = str(thisInd[thiskey])
+    ds.attrs["seasonID_dict"] = json.dumps(config['seasons'])
+    if thisInd["time_binning"] == "periods":
+        ds.attrs["periodID_dict"]= json.dumps(config['periods'])
 
     # Write out
     ds.to_netcdf(outFile[0])
