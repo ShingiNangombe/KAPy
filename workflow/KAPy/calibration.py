@@ -2,14 +2,16 @@
 #Setup for debugging with VS code
 import os
 print(os.getcwd())
-import helpers as helpers
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
+import KAPy.helpers as helpers
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
-histsimFile='./outputs/1.variables/tas/tas_CORDEX_EUR-11_rcp85_NCC-NorESM1-M_r1i1p1_SMHI-RCA4_v1.nc'
-refFile="./outputs/1.variables/tas/tas_KGDK_KGDK_no-expt_tasobs_1989-2019_new.nc"
-thisCal='tas-xclim-scaling'
+wf=KAPy.getWorkflow(config)
+thisCal='tas-ba'
+outFile=list(wf['calibratedVars'][thisCal])[0]
+histsimFile=wf['calibratedVars'][thisCal][outFile]['histsim']
+refFile=wf['calibratedVars'][thisCal][outFile]['ref']
 import matplotlib.pyplot as plt
 %matplotlib inline
 """
@@ -76,15 +78,9 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     refdsCP=helpers.timeslice(refds,
                      calCfg['calPeriodStart'],
                      calCfg['calPeriodEnd'])
-    #Align the calendar representation and rename variables                     
-    refdsCPtime=(refdsCP
-                 .convert_calendar(histsimNN.time.dt.calendar,
-                                   use_cftime=True,
-                                   align_on="year")
-                .rename({"time": "reftime"}))
-    
     # Merge into one dataset object, with common spatial dimensions but
     # differentiated time dimensions. Note the need to unify the chunking
+    refdsCPtime=refdsCP.rename({"time": "reftime"})
     combDS2=xr.Dataset({'histsim':histsimNN.unify_chunks(),
                         'ref':refdsCPtime.unify_chunks()})
     combDS=combDS2.unify_chunks()
@@ -114,6 +110,9 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
         hsCP=hsCP.convert_calendar(rfCP.time.dt.calendar,
                                     use_cftime=True,
                                     align_on="year")  
+        
+        #We interpolate time to be on a common time axis
+        hsCP=hsCP.interp(time=rfCP.time,method="nearest")
         
         #Setup mapping to methods and grouping
         cmethodsAdj={"cmethods-linear":'linear_scaling',
