@@ -107,7 +107,7 @@ rule secondaryVars:
 # Calibration -------------------
 # Aka bias-correction. 
 def calibration_singular_rule(thisID):
-    thisCalVar=config['calibration'][thisID]['outVariable']
+    thisCalVar=config['calibration'][thisID]['calibrationVariable']
     rule:  
         name: f'calibration_{thisID}'
         output:

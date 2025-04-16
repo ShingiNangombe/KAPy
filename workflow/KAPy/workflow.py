@@ -48,7 +48,7 @@ def getWorkflow(config):
             #Set output filename, setting the file extension manually.
             pvTbl=inpTbl
             pvTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
+                    f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
 
         # A similar case also exists where there is a single ensemble member, but it
         # is spread across multiple files. This is indicated when the ensMemberFields
@@ -56,14 +56,14 @@ def getWorkflow(config):
         elif thisInp['ensMemberFields']==['']:
             pvTbl=inpTbl
             pvTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
+                    f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
 
         # Else multiple hits detected that need to be handled.
         else:
             # Handling multiple files requires some information from the filenames, 
             # and therefore the fieldSeparator needs to be defined. If not, throw an error
             if thisInp['fieldSeparator']=='':
-                sys.exit(f'fieldSeparator is not defined for "{thisInp['varID']}-{thisInp['srcID']}" ' + \
+                sys.exit(f'fieldSeparator is not defined for "{thisInp['varID']}-{thisInp['datasetID']}" ' + \
                          f'but {len(inpTbl)} files were detected.')
 
             # Split filenames into columns and extract predefined elements
@@ -78,7 +78,7 @@ def getWorkflow(config):
                 #experiment individually
                 #Form the corresponding filename. Don't forget to add the .nc
                 inpTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_" + \
+                    f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
                     inpTbl['experiment'] + "_" + \
                     inpTbl['ensMemberID'] +".nc"
 
@@ -102,14 +102,14 @@ def getWorkflow(config):
 
                     #Forming the corresponding filename. Don't forget to add the .nc
                     theseExptFiles['pvFname']= \
-                        f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_" + \
+                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
                         thisExpt + "_" + \
                         theseExptFiles['ensMemberID'] +".nc"
                     
                     #Now do the same for the commonExpt - using the experiment
                     #naming from thisExpt (and not the native commonExperimentID)
                     commonExptTable['pvFname']= \
-                        f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_" + \
+                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
                         thisExpt + "_" + \
                         commonExptTable['ensMemberID'] +".nc"
                     
@@ -156,7 +156,7 @@ def getWorkflow(config):
         thisTbl = pd.DataFrame(flist,columns=["path"])
         thisTbl["fname"] = [os.path.basename(p) for p in thisTbl["path"]]
         thisTbl["varID"] = thisTbl["fname"].str.extract("^([^_]+)_.*$")
-        thisTbl["srcID"] = thisTbl["fname"].str.extract("^[^_]+_([^_]+)_.*$")
+        thisTbl["datasetID"] = thisTbl["fname"].str.extract("^[^_]+_([^_]+)_.*$")
         thisTbl["gridID"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_([^_]+)_.*$")
         thisTbl["expt"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_.]+).*$")
         thisTbl["stems"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.+).nc(?:.pkl)?$")
@@ -176,7 +176,7 @@ def getWorkflow(config):
 
             # Pivot and retain only those in common
             svTbl = longSVTbl.pivot(
-                index=["srcID","gridID","expt", "stems"], columns="varID", values="path"
+                index=["datasetID","gridID","expt", "stems"], columns="varID", values="path"
             )
             svTbl = svTbl.dropna().reset_index()
             if svTbl.size == 0:
@@ -185,7 +185,7 @@ def getWorkflow(config):
             # Now we have a list of valid files that can be made. Store the results
             svTbl['outFile'] = [
                 os.path.join(outDirs["variables"], thisSV["outputVars"][0], fName)
-                for fName in f"{thisSV["outputVars"][0]}_" + svTbl["srcID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
+                for fName in f"{thisSV["outputVars"][0]}_" + svTbl["datasetID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
             ]
 
             # Add to output dict
@@ -209,7 +209,7 @@ def getWorkflow(config):
         for thisCal in config["calibration"].values():
             # Now filter by the input variables needed for this calibration 
             selThese = (varPal["varID"] ==thisCal['calibrationVariable']) & \
-                        (varPal["srcID"]==thisCal['calibSource'])
+                        (varPal["datasetID"]==thisCal['targetDatasetID'])
             calTbl = varPal[selThese].copy()
             try:
                 if calTbl.size == 0:
@@ -223,16 +223,16 @@ def getWorkflow(config):
             # The workflow also requires that the reference dataset is present, so this becomes
             # a prerequisite for making the output
             selThese = (varPal["varID"] ==thisCal['calibrationVariable']) & \
-                        (varPal["srcID"]==thisCal['refSource'])
+                        (varPal["datasetID"]==thisCal['refDatasetID'])
             if sum(selThese)!=1:
                 raise ValueError("Cannot find a unique data variable to use as the reference "
-                                 + f'for calibration of "{thisCal['calibrationVariable']}_{thisCal['calibSource']}"')
+                                 + f'for calibration of "{thisCal['calibrationVariable']}_{thisCal['targetDatasetID']}"')
             refDict = varPal[selThese].to_dict(orient="records")[0]
 
             # Now we have a list of valid files that can be made. Store the results
             calTbl['outFile'] = [
-                os.path.join(outDirs["calibration"], thisCal["outVariable"], fName)
-                for fName in f"{thisCal["outVariable"]}_" + calTbl["srcID"] + "_" + refDict['gridID']+"_"+calTbl["expt"]+"_"+calTbl["stems"]+".nc"
+                os.path.join(outDirs["calibration"], thisCal["calibrationVariable"], fName)
+                for fName in f"{thisCal["calibrationVariable"]}_" + thisCal["outDatasetID"] + "_" + refDict['gridID']+"_"+calTbl["expt"]+"_"+calTbl["stems"]+".nc"
             ]
 
             # Add to output dict

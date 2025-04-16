@@ -6,7 +6,7 @@
   "required": [
     "id",
     "varID", 
-    "srcID", 
+    "datasetID", 
     "gridID",
     "path", 
     "internalVarName", 
@@ -27,10 +27,10 @@
       "pattern": "^[^ ]+$",
       "description": "The ID of the variable contained in this dataset. While there is no enforcement of naming conventions in KAPy, the variable names should anyway be standardised across the entire configuration and across input datasets. For example, both ERA5 and CORDEX provide surface temperature, but with different internal variable names in the input files - to ensure that they can be matched together, they should both be assigned the varName `tas`. Must not contain a space."
     },
-    "srcID": {
+    "datasetID": {
       "type": "string",
       "pattern": "^[^ ]+$",
-      "description": "The ID of the data source e.g CORDEX, ERA5. Need not be unique. Is used to group related variables from the same datasource together further in the analysis (e.g. tas and pr from ERA5). Must not contain a space."
+      "description": "The ID of the dataset e.g CORDEX, ERA5. Need not be unique. Is used to group related variables from the same data source together further in the analysis (e.g. tas and pr from ERA5). Must not contain a space."
     },
     "gridID": {
       "type": "string",

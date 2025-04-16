@@ -188,11 +188,10 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
                         template=histsimNN)
 
     #Finishing touches
-    out2=out.rename(calCfg['outVariable'])   #Return object, rather than inline modification
-    out2 = out2.assign_attrs({"calibration_args": json.dumps(calCfg)})
+    out2 = out.assign_attrs({"calibration_args": json.dumps(calCfg)})
 
     #Now write, setting the chunk sizes and compression
     out2.to_netcdf(outFile[0],
-                encoding={calCfg['outVariable']:{'chunksizes':[256,16,16],
+                encoding={calCfg['calibrationVariable']:{'chunksizes':[256,16,16],
                             'zlib': True,
                             'complevel':1}})

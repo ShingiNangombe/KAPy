@@ -127,7 +127,7 @@ def combineArealstats(config, inFiles, outFile):
     datdf.insert(2,'memberID',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.*).csv$"))
     datdf.insert(2,'expt',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
     datdf.insert(2,'gridID',datdf['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'srcID',datdf['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
+    datdf.insert(2,'datasetID',datdf['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
     datdf.insert(2,'indID',datdf['filename'].str.extract("^([^_]+)_.*$"))
 
     #Drop the filename and write out
