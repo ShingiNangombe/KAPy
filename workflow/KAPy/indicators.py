@@ -40,6 +40,10 @@ def calculateIndicators(config, inFile, outFile, indID):
     def applyStat(d,thisStat,args):
         if thisStat=="mean":
             res = d.mean("time", keep_attrs=True)
+        elif thisStat=="annmax":
+            res =d.groupby("time.year").max().mean(dim="year", keep_attrs=True)
+        elif thisStat=="annmin":
+            res =d.groupby("time.year").min().mean(dim="year", keep_attrs=True)
         elif thisStat=="count":
             #Check input arguments
             if not (('op' in args) & ('threshold' in args)):
