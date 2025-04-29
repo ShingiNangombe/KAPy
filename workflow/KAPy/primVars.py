@@ -2,15 +2,16 @@
 #Setup for debugging with VSCode
 import os
 print(os.getcwd())
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
 os.chdir("../..")
 print(os.getcwd())
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-inpID=next(iter(wf['primVars'].keys()))
-outFile=[next(iter(wf['primVars'][inpID]))]
-inFiles=wf['primVars'][inpID][outFile[0]]
+inpID=list(wf['primVars'].keys())[0]
+outFile=list(wf['primVars'][inpID])[0]
+inFiles=wf['primVars'][inpID][outFile]
+import KAPy.helpers as helpers
 %matplotlib inline
 """
 
@@ -20,6 +21,7 @@ import pickle
 import sys
 from cdo import Cdo
 import numpy as np
+import xclim 
 from . import helpers 
 
 #-----------------------------------------------------------------
@@ -153,6 +155,29 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 		imptFn=helpers.getExternalFunction(thisInp["importScriptPath"], thisInp["importScriptFunction"])
 		da = imptFn(config, inFiles, inpID)  
 
+	# Unit handling -----------------------------
+	# Note that this is enforced here, even if it is already handled in the custom
+	# configuration. There are three separate cases we need to handle
+
+	# Case 1 - no units attribute on da: 
+	# => Set units directly but fail if not specified
+	if not 'units' in da.attrs:
+		if thisInp['units']=='':
+			raise ValueError(f"Units argument for inputID '{inpID}' is blank but needs to be supplied in cases where there are no units in the input file.")
+		else:
+			da.attrs['units'] = thisInp['units']
+
+	# Case 2 - da has units, but argument is null:
+	# => leave as in
+
+	# Case 3 - da has units, argument is specified
+	# => Convert units of data to specified
+	elif not thisInp['units']=='':
+		da=xclim.core.units.convert_units_to(da,thisInp['units'])
+	
+	# Check that the unit choice is sane
+
+	# Output --------------------
 	# Write the dataset object to disk, depending on the configuration
 	if config['processing']['picklePrimaryVariables']:
 		with open(outFile[0],'wb') as f:

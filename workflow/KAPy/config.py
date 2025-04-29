@@ -24,8 +24,8 @@ def readConfig(configfile):
         with open(configfile, "r") as f:
             cfg = yaml.safe_load(f)
     else:
-        sys.exit(
-            f"Cannot find configuration file: {configfile}. "
+        raise FileNotFoundError(
+            f"Cannot find configuration file '{configfile}'. "
             + f"Working directory: '{os.getcwd()}'"
         )
     return cfg
@@ -136,6 +136,13 @@ def validateConfig(config):
             raise ValueError("Month specification must be between 1 and 12 inclusive")
         # Write the integers back to finish
         config["seasons"][thisKey]["months"] = theseMnths
+
+    #Require that units are consistent across a variable
+    inputvarDf=pd.DataFrame.from_dict(config["inputs"],orient="index")
+    unitCount=inputvarDf.groupby('varID')['units'].nunique()
+    if any(unitCount>1):
+        multiUnits = unitCount[unitCount > 1].index
+        raise ValueError(f"Variable '{multiUnits[0]}' has {unitCount[multiUnits[0]]} different units defined. Please ensure consistency between units in the same varID.")
 
     # Season selected in the indicator table must be valid
     # Currently allow only one season per indicator. This needs to be fixed in the future
