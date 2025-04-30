@@ -36,7 +36,7 @@ def primaryVar_singular_rule(thisID):
                          f"{{fname}}")
         input:
             lambda wildcards: 
-                wf['primVars'][thisID][ os.path.join(outDirs['variables'],
+                wf['primVars'][thisID][os.path.join(outDirs['variables'],
                                                      thisVarName,
                                                      wildcards.fname)]
         run:

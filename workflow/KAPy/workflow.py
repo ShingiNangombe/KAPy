@@ -51,19 +51,22 @@ def getWorkflow(config):
                     f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
 
         # A similar case also exists where there is a single ensemble member, but it
-        # is spread across multiple files. This is indicated when the ensMemberFields
-        # are empty
-        elif thisInp['ensMemberFields']==['']:
+        # is spread across multiple files. This is indicated when the ensMemberFields and 
+        # experimentField is empty. We handle all variates of that here
+        elif thisInp['ensMemberFields']==[''] and thisInp['experimentField']==['']:
             pvTbl=inpTbl
             pvTbl['pvFname']= \
                     f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
-
+        elif thisInp['ensMemberFields']==['']:
+            raise ValueError("Unhandled case. Please file a bug")
+        elif thisInp['experimentField']==['']:
+            raise ValueError("Unhandled case. Please file a bug")
         # Else multiple hits detected that need to be handled.
         else:
             # Handling multiple files requires some information from the filenames, 
             # and therefore the fieldSeparator needs to be defined. If not, throw an error
             if thisInp['fieldSeparator']=='':
-                sys.exit(f'fieldSeparator is not defined for "{thisInp['varID']}-{thisInp['datasetID']}" ' + \
+                raise ValueError(f'fieldSeparator is not defined for "{thisInp['varID']}-{thisInp['datasetID']}" ' + \
                          f'but {len(inpTbl)} files were detected.')
 
             # Split filenames into columns and extract predefined elements
@@ -102,15 +105,15 @@ def getWorkflow(config):
 
                     #Forming the corresponding filename. Don't forget to add the .nc
                     theseExptFiles['pvFname']= \
-                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
-                        thisExpt + "_" + \
+                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}" + \
+                        f"_{thisInp["commonExperimentID"]}+{thisExpt}_" + \
                         theseExptFiles['ensMemberID'] +".nc"
                     
                     #Now do the same for the commonExpt - using the experiment
                     #naming from thisExpt (and not the native commonExperimentID)
                     commonExptTable['pvFname']= \
                         f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
-                        thisExpt + "_" + \
+                        f"_{thisInp["commonExperimentID"]}+{thisExpt}_" + \
                         commonExptTable['ensMemberID'] +".nc"
                     
                     #Now select the files from the commonExpt that are also in the
