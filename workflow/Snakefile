@@ -62,6 +62,11 @@ rule primaryVars:
         [list(thisInp.keys()) for thisInp in wf['primVars'].values()]
         
 
+#Make the variable overview
+rule overview:
+    run:
+        KAPy.VariableOverview(config)
+
 # Secondary variables -------------------------
 # "Secondary variables" are calculated as new variables derived from primary variables.  
 # Good examples include FWI, PoteEvap and SPI. 
