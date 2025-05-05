@@ -6,18 +6,17 @@ import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-thisID='deltaT'
+thisID='e_sat'
 thisVar=config['secondaryVars'][thisID]
-inFiles=['./outputs/1.variables/pr/pr_KAba_rcp26_EUR-11_CCCma-CanESM2r1i1p1_CLMcom-CCLM4-8-17_v1_day.nc']
-import sys
-sys.path.append("KAPy/workflow/KAPy/")
-from helpers import readFile
+outFile=list(wf['secondaryVars'][thisID])[0]
+inFiles=wf['secondaryVars'][thisID][outFile]
+from KAPy import helpers 
 """
 
 import xarray as xr
 import importlib
-from . import helpers
 import os
+from . import helpers
 
 
 def buildDerivedVar(config, inFiles, outFile, thisVar):
@@ -34,12 +33,8 @@ def buildDerivedVar(config, inFiles, outFile, thisVar):
         thisModule = importlib.import_module(thisVar["processorPath"])
         thisFn = getattr(thisModule, thisVar["processorFunction"])
     elif thisVar["processorType"] == "script":
-        thisSpec = importlib.util.spec_from_file_location(
-            "customScript", thisVar["processorPath"]
-        )
-        thisModule = importlib.util.module_from_spec(thisSpec)
-        thisSpec.loader.exec_module(thisModule)
-        thisFn = getattr(thisModule, thisVar["processorFunction"])
+        thisFn=helpers.getExternalFunction(thisVar["processorPath"],
+                                            thisVar["processorFunction"])
     else:
         sys.exit("Shouldn't be here")
 
