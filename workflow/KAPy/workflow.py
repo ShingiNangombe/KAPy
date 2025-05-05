@@ -33,9 +33,8 @@ def getWorkflow(config):
     pvDict = {}
     for thisKey, thisInp in inp.items():
         # Get file list
-        inpTbl = pd.DataFrame(glob.glob(thisInp["path"]), columns=["inPath"])
+        inpTbl = pd.DataFrame(sorted(glob.glob(thisInp["path"])), columns=["inPath"])
         inpTbl['inFname']=[os.path.basename(p) for p in inpTbl['inPath']]
-
         #First, handle case where we don't find any files. We could ignore it,
         # but it's best to throw an error
         if len(inpTbl)==0:
@@ -53,14 +52,14 @@ def getWorkflow(config):
         # A similar case also exists where there is a single ensemble member, but it
         # is spread across multiple files. This is indicated when the ensMemberFields and 
         # experimentField is empty. We handle all variates of that here
-        elif thisInp['ensMemberFields']==[''] and thisInp['experimentField']==['']:
+        elif thisInp['ensMemberFields']==[''] and thisInp['experimentField']=='' and len(inpTbl)>1:
             pvTbl=inpTbl
             pvTbl['pvFname']= \
                     f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
-        elif thisInp['ensMemberFields']==['']:
-            raise ValueError("Unhandled case. Please file a bug")
-        elif thisInp['experimentField']==['']:
-            raise ValueError("Unhandled case. Please file a bug")
+        # elif thisInp['ensMemberFields']==['']:
+        #     raise ValueError("Unhandled case. Please file a bug")
+        # elif thisInp['experimentField']==['']:
+        #     raise ValueError("Unhandled case. Please file a bug")
         # Else multiple hits detected that need to be handled.
         else:
             # Handling multiple files requires some information from the filenames, 
@@ -103,27 +102,29 @@ def getWorkflow(config):
                     # Get files that are either in the experiment of interest first
                     theseExptFiles=inpTbl[inpTbl['experiment'].isin([thisExpt])].copy()
 
-                    #Forming the corresponding filename. Don't forget to add the .nc
+                    #Forming the corresponding filenames. Don't forget to add the .nc
+                    #Experiment naming is the sum of the commonExpt and thisExpt
                     theseExptFiles['pvFname']= \
                         f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}" + \
                         f"_{thisInp["commonExperimentID"]}+{thisExpt}_" + \
                         theseExptFiles['ensMemberID'] +".nc"
-                    
-                    #Now do the same for the commonExpt - using the experiment
-                    #naming from thisExpt (and not the native commonExperimentID)
                     commonExptTable['pvFname']= \
-                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
+                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}" + \
                         f"_{thisInp["commonExperimentID"]}+{thisExpt}_" + \
                         commonExptTable['ensMemberID'] +".nc"
                     
                     #Now select the files from the commonExpt that are also in the
                     #otherExperiment table. This makes sure that we only add
                     #commonExpt ensemble members that have corresponding files
-                    #in the given experiment (thisExpt). Then concat.
+                    #in the given experiment (thisExpt). Then concat. Throw an
+                    #error if none found
                     theseCommonExptFiles=commonExptTable[
                         commonExptTable['pvFname'].isin(theseExptFiles['pvFname'])
                     ]
-                    combinedFileTbl=pd.concat([theseExptFiles,theseCommonExptFiles])
+                    if theseCommonExptFiles.shape[0]==0:
+                        raise ValueError(f"Cannot find commonExperiment files to match '{theseExptFiles['inPath'].iloc[0]}'.")
+
+                    combinedFileTbl=pd.concat([theseCommonExptFiles,theseExptFiles,])
 
                     # Store results
                     pvList += [combinedFileTbl[['pvFname','inPath']]]

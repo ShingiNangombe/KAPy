@@ -50,12 +50,17 @@ def defaultImport(config, inFiles, inpID):
 	# Use the join="override" argument to handle the case where
 	# there are small numerical differences in the values of the
 	# coordinates - in this case, we take the coordinates from the first file
-	dsIn =xr.open_mfdataset(inFiles,
-							combine='nested',
-							use_cftime=True, 
-							join="override", 
-							chunks={'time':256},
-							concat_dim='time')
+	time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
+	try:
+		dsIn =xr.open_mfdataset(inFiles,
+								combine='nested',
+								decode_times=time_coder, 
+								join="override", 
+								chunks={'time':256},
+								concat_dim='time')
+	except Exception as e:
+		raise RuntimeError(f"Opening following NetCDF files failed: '{inFiles}'\n{e}")
+
 	dsIn=dsIn.sortby('time')
 
 	# Select the desired variable and rename it
@@ -197,10 +202,13 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 		chunkThisWay=[min(defaultChunks[i],daFloat.shape[i]) for i in range(0,3)]
 		
 		#Now use the chunking scheme as the basis for writing out the encoding
-		daFloat.to_netcdf(outFile[0],
-					encoding={thisInp["varID"]:{'chunksizes':chunkThisWay,
-							   'zlib': True,
-							   'complevel':1}})
+		try:
+			daFloat.to_netcdf(outFile[0],
+						encoding={thisInp["varID"]:{'chunksizes':chunkThisWay,
+								'zlib': True,
+								'complevel':1}})
+		except Exception as e:
+			raise RuntimeError(f"Writing NetCDF file '{outFile[0]}' to disk failed with error: {e}") 
 
 def VariableOverview(config):
 	#Get workflow
@@ -251,17 +259,23 @@ def VariableOverview(config):
 		thisrw['file_exists']=os.path.exists(thisrw['path'])
 		#If the file exists, load it
 		if thisrw['file_exists']:
-			#Load file
-			dat=helpers.readFile(thisrw['path'])
-			#Extract useful info
-			thisrw['calendar']=dat.time.values[0].calendar
-			thisrw['start_date']=min(dat.time.values).strftime("%Y-%m-%d")
-			thisrw['end_date']=max(dat.time.values).strftime("%Y-%m-%d")
-			thisrw['time_span']=(max(dat.time.values)-min(dat.time.values)).days
-			thisrw['time_points']=dat.time.size
-			thisrw['gaps']=thisrw['time_points']-thisrw['time_span']-1
+			#Try to load the file
+			try:
+				dat=helpers.readFile(thisrw['path'])
+				thisrw['loadsOK']=True
+			except Exception as e:
+				thisrw['loadsOK']=False
 
-		#Store
+			#Extract useful info if possible
+			if thisrw['loadsOK']:
+				thisrw['calendar']=dat.time.values[0].calendar
+				thisrw['start_date']=min(dat.time.values).strftime("%Y-%m-%d")
+				thisrw['end_date']=max(dat.time.values).strftime("%Y-%m-%d")
+				thisrw['time_span']=(max(dat.time.values)-min(dat.time.values)).days
+				thisrw['time_points']=dat.time.size
+				thisrw['gaps']=thisrw['time_points']-thisrw['time_span']-1
+
+		#Store outputs
 		outList+=[thisrw]
 
 	#Output results
