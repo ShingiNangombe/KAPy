@@ -65,8 +65,9 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
                                                 prefix="histsimNN_",
                                                 suffix=".nc").name
     histsimNN=regrdr(histsimRechunked,output_chunks=(-1,-1),keep_attrs=True)
+    chunkThisWay=[min([256,16,16][i],histsimNN.shape[i]) for i in range(0,3)]
     histsimNN.to_netcdf(regrdFname,
-              encoding={histsimNN.name:{'chunksizes':(256,16,16)}})
+              encoding={histsimNN.name:{'chunksizes':chunkThisWay}})
 
     #Now reopen histsimNN with a time-oriented chunking
     histsimNN=helpers.readFile(regrdFname,chunks={'time':-1}).unify_chunks()
@@ -191,7 +192,8 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     out2 = out.assign_attrs({"calibration_args": json.dumps(calCfg)})
 
     #Now write, setting the chunk sizes and compression
+    chunkThisWay=[min([256,16,16][i],out2.shape[i]) for i in range(0,3)]
     out2.to_netcdf(outFile[0],
-                encoding={calCfg['calibrationVariable']:{'chunksizes':[256,16,16],
+                encoding={calCfg['calibrationVariable']:{'chunksizes':chunkThisWay,
                             'zlib': True,
                             'complevel':1}})

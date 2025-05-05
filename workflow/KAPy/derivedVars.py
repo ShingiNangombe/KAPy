@@ -43,9 +43,10 @@ def buildDerivedVar(config, inFiles, outFile, thisVar):
     out = thisFn(**theseArgs)
 
     # Write the results to disk
+    chunkThisWay=[min([256,16,16][i],out.shape[i]) for i in range(0,3)]
     out.name = thisVar["id"]
     out.to_netcdf(outFile[0],
-                encoding={thisVar["id"]:{'chunksizes':[256,16,16],
+                encoding={thisVar["id"]:{'chunksizes':chunkThisWay,
                                          'zlib': True,
                                          'complevel':1}})
 
