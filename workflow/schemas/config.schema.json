@@ -19,6 +19,7 @@
                 "inputs",
                 "secondaryVars",
                 "calibration",
+                "tertiaryVars",
                 "indicators",
                 "periods",
                 "seasons"
@@ -35,6 +36,10 @@
                 },
                 "calibration": {
                     "description": "Path to calibration configuration table, relative to working directory. See [calibration.md](calibration.md) for more detail. Optional - if set to '', no calibration will be performed",
+                    "type": "string"
+                },
+                "tertiaryVars": {
+                    "description": "Path to configuration table for tertiary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '', no tertiary variables will be generated",
                     "type": "string"
                 },
                 "indicators": {
@@ -55,8 +60,10 @@
             "description": "Directories for storing output and intermediate files. Can be specified as either absolute paths, or relative to the working directory. See the [KAPy concepts](../KAPy_concepts.md) documentation for a more detailed description of these items",
             "type": "object",
             "required": [
-                "variables",
+                "primaryVariables",
+                "secondaryVariables",
                 "calibration",
+                "tertiaryVariables",
                 "indicators",
                 "regridded",
                 "ensstats",
@@ -66,12 +73,20 @@
             ],
             "additionalProperties": false,
             "properties": {
-                "variables": {
-                    "description": "Directory for storing variables.",
+                "primaryVariables": {
+                    "description": "Directory for storing primary variables.",
+                    "type": "string"
+                },
+                "secondaryVariables": {
+                    "description": "Directory for storing secondary variables.",
                     "type": "string"
                 },
                 "calibration": {
                     "description": "Directory for storing calibrated variables.",
+                    "type": "string"
+                },
+                "tertiaryVariables": {
+                    "description": "Directory for storing tertiary variables.",
                     "type": "string"
                 },
                 "indicators": {

@@ -76,6 +76,11 @@ def validateConfig(config):
                         "dictCols": ["additionalArgs"],
                         "schema": "calibration",
                         "optional": True},
+        "tertiaryVars": {
+            "listCols": ["inputVars", "outputVars"],
+            "dictCols": ["additionalArgs"],
+            "schema": "derivedVars",
+            "optional": True},
         "indicators": {"listCols": ["seasons"], 
                        "dictCols": ["additionalArgs"], 
                        "schema": "indicators",

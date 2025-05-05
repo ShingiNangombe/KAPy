@@ -31,12 +31,12 @@ def primaryVar_singular_rule(thisID):
     rule:  
         name: f'primaryVar_{thisID}'
         output:
-            os.path.join(outDirs['variables'],
+            os.path.join(outDirs['primaryVariables'],
                          f"{thisVarName}",
                          f"{{fname}}")
         input:
             lambda wildcards: 
-                wf['primVars'][thisID][os.path.join(outDirs['variables'],
+                wf['primVars'][thisID][os.path.join(outDirs['primaryVariables'],
                                                      thisVarName,
                                                      wildcards.fname)]
         run:
@@ -77,12 +77,12 @@ def secVar_singular_rule(thisID):
     rule:  
         name: f'secondaryVar_{thisID}'
         output:
-            os.path.join(outDirs['variables'],
+            os.path.join(outDirs['secondaryVariables'],
                          thisOutputVar,
                          "{fname}")
         input:
             unpack(lambda wildcards:
-                wf['secondaryVars'][thisID][os.path.join(outDirs['variables'],
+                wf['secondaryVars'][thisID][os.path.join(outDirs['secondaryVariables'],
                                                             thisOutputVar,
                                                             wildcards.fname)])
         run:
@@ -149,6 +149,49 @@ if 'calibratedVars' in wf:
         input:
             [list(thisCal.keys()) for thisCal in wf['calibratedVars'].values()]
             
+
+# Tertiary variables -------------------------
+# "Tertiary variables" are calculated as new variables derived from variables created
+# by calibration. Good examples include FWI, PoteEvap and SPI, but based on calibrated
+# variables, rather than raw input variables.
+# Singular rule
+def tertVar_singular_rule(thisID):
+    thisVar=config['tertiaryVars'][thisID]
+    thisOutputVar=thisVar['outputVars'][0]
+    rule:  
+        name: f'tertiaryVar_{thisID}'
+        output:
+            os.path.join(outDirs['tertiaryVariables'],
+                         thisOutputVar,
+                         "{fname}")
+        input:
+            unpack(lambda wildcards:
+                wf['tertiaryVars'][thisID][os.path.join(outDirs['tertiaryVariables'],
+                                                            thisOutputVar,
+                                                            wildcards.fname)])
+        run:
+            KAPy.buildDerivedVar(config=config,
+                                     inFiles=input, 
+                                     outFile=output,
+                                     thisVar=thisVar)
+
+
+#Plural rule
+def tertVar_plural_rule(thisID):
+    rule:
+        name: f'{thisID}'
+        input:
+            list(wf['tertiaryVars'][thisID].keys())
+
+
+for inpID in wf['tertiaryVars'].keys():
+    tertVar_singular_rule(inpID)
+    tertVar_plural_rule(inpID)
+
+#Run all plurals    
+rule tertiaryVars:
+    input:
+        [list(thisInp.keys()) for thisInp in wf['tertiaryVars'].values()]       
 
 # Indicators ---------------------------------
 # Create a loop over the indicators that defines the singular and plural rules

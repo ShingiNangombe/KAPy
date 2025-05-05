@@ -134,7 +134,7 @@ def getWorkflow(config):
 
         # Build the full filename and tidy up the output into a dict
         pvTbl["pvPath"] = [
-            os.path.join(outDirs["variables"], thisInp["varID"], f)
+            os.path.join(outDirs["primaryVariables"], thisInp["varID"], f)
             for f in pvTbl["pvFname"]
         ]
 
@@ -188,7 +188,7 @@ def getWorkflow(config):
 
             # Now we have a list of valid files that can be made. Store the results
             svTbl['outFile'] = [
-                os.path.join(outDirs["variables"], thisSV["outputVars"][0], fName)
+                os.path.join(outDirs["secondaryVariables"], thisSV["outputVars"][0], fName)
                 for fName in f"{thisSV["outputVars"][0]}_" + svTbl["datasetID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
             ]
 
@@ -248,6 +248,49 @@ def getWorkflow(config):
             # Add to variable palette
             varPal = pd.concat([varPal,
                                parseFilelist(calTbl['outFile'].to_list())])
+
+
+    # Tertiary Variables---------------------------------------------
+    # Iterate over tertiary variables if they are requested. The approach
+    # here is very similar to secondary variables, but we only draw on
+    # the variables in the post-calibration palette (postcalPal) instead of the full variable
+    # palette. Ideally this should be merged into a function.
+    postcalPal = parseFilelist([k for v in calDict.values() for k in v.keys()])
+    tvDict = {}
+    if "tertiaryVars" in config:
+        for thisTV in config["tertiaryVars"].values():
+            # Filter by the input variables needed for this derived variable
+            selThese = [v in thisTV["inputVars"] for v in postcalPal["varID"]]
+            longTVTbl = postcalPal[selThese]
+            if longTVTbl.size == 0:
+                    raise ValueError(f"Cannot find any input variables for tertiary variable '{thisTV['id']}'. ")
+
+            # Pivot and retain only those in common
+            tvTbl = longTVTbl.pivot(
+                index=["datasetID","gridID","expt", "stems"], columns="varID", values="path"
+            )
+            tvTbl = tvTbl.dropna().reset_index()
+            if tvTbl.size == 0:
+                raise ValueError(f"Cannot find matching input variables for tertiary variable '{thisTV['id']}'. ")
+
+            # Now we have a list of valid files that can be made. Store the results
+            tvTbl['outFile'] = [
+                os.path.join(outDirs["tertiaryVariables"], thisTV["outputVars"][0], fName)
+                for fName in f"{thisTV["outputVars"][0]}_" + tvTbl["datasetID"] + "_" + tvTbl['gridID']+"_"+tvTbl["expt"]+"_"+tvTbl["stems"]+".nc"
+            ]
+
+            # Add to output dict
+            outDict={}
+            for idx, rw in tvTbl.iterrows():
+                inputVarDict={v:rw[v] for v in thisTV['inputVars']}
+                outDict[rw['outFile']] =inputVarDict 
+            tvDict[thisTV['id']] = outDict
+
+            # Add to variable palette
+            postcalPal=pd.concat([postcalPal,
+                               parseFilelist(tvTbl['outFile'].to_list())])
+            varPal = pd.concat([varPal,
+                               parseFilelist(tvTbl['outFile'].to_list())])
 
 
     # Indicators -----------------------------------------------------
@@ -394,6 +437,7 @@ def getWorkflow(config):
         "primVars": pvDict,
         "secondaryVars": svDict,
         "calibratedVars":calDict,
+        "tertiaryVars": tvDict,
         "indicators": indDict,
         "regridded": rgDict,
         "ensstats": ensDict,
@@ -407,6 +451,7 @@ def getWorkflow(config):
         if k in ["primVars",
                  "secondaryVars",
                  "calibratedVars",
+                 "tertiaryVars",
                  "indicators"]:  # Requires special handling, as these are nested lists
             for x in v.values():
                 allList += x.keys()
