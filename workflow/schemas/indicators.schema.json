@@ -46,6 +46,10 @@
         }
       ]
     },
+    "datasets": {
+      "description": "Comma-separated list of dataset IDs for which the indicator is to be calculated. IDs should match those defined as primary (input), secondary, calibration or tertiary variables. In addition, `all` selects all datasets.",
+      "type": "string"
+    },
     "seasons": {
       "description": "Comma-separated lists of season IDs over which the indicator is to be calculated. IDs should match those in the [seasons configuration](seasons.md) table. In addition, `all` selects all seasons.",
       "type": "string"

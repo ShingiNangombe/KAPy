@@ -310,10 +310,15 @@ def getWorkflow(config):
             for idx, rw in varPal.iterrows()
         ]
         #Only extract the dict for the part that we are actually
-        #interested in
-        useThese = varPal["varID"] == thisInd["variables"]
+        #interested in, including both variables and datasets
+        varPal['hasVars'] = varPal["varID"] == thisInd["variables"]
+        varPal['correctDataset'] = [v in thisInd['datasets']  for v in varPal['datasetID']]
+        if "all" in thisInd['datasets']:
+            useThese = varPal['hasVars']
+        else:
+            useThese = varPal['hasVars'] & varPal['correctDataset']
         if not any(useThese):
-            raise ValueError(f"Cannot find variable(s) {thisInd["variables"]} to calculate indicators from.")
+            raise ValueError(f"Cannot find variable(s) {thisInd["variables"]} for datasets '{thisInd['datasets']}' to calculate indicators from.")
         indDict[indKey] = {rw["indPath"]: [rw["path"]] \
                                     for idx, rw in varPal[useThese].iterrows()}
 

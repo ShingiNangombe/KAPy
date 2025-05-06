@@ -9,7 +9,6 @@ import yaml
 import pandas as pd
 from snakemake.utils import validate
 import os
-import sys
 import ast
 
 
@@ -81,7 +80,7 @@ def validateConfig(config):
             "dictCols": ["additionalArgs"],
             "schema": "derivedVars",
             "optional": True},
-        "indicators": {"listCols": ["seasons"], 
+        "indicators": {"listCols": ["seasons","datasets"], 
                        "dictCols": ["additionalArgs"], 
                        "schema": "indicators",
                        "optional": True},
@@ -111,7 +110,11 @@ def validateConfig(config):
         # We therefore need to drop the list columns from the validation scheme
         valThis = thisTbl.drop(columns=theseVals["listCols"])
         # Validate against the appropriate schema.
-        validate(valThis, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))
+        try:
+            validate(valThis, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))    
+        except Exception as e:
+            raise ValueError(f"Validation of {thisTblKey} in '{thisCfgFile}' failed with error: {e} ")
+
         # Dict columns also need to be parsed
         for col in theseVals["dictCols"]:
             try:

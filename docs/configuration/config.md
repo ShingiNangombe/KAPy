@@ -8,12 +8,15 @@
   - **`inputs`** *(string, required)*: Path to input configuration table, relative to working directory. See [inputs.md](inputs.md) for more detail. Required table.
   - **`secondaryVars`** *(string, required)*: Path to configuration table for secondary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '', no secondary variables will be generated.
   - **`calibration`** *(string, required)*: Path to calibration configuration table, relative to working directory. See [calibration.md](calibration.md) for more detail. Optional - if set to '', no calibration will be performed.
+  - **`tertiaryVars`** *(string, required)*: Path to configuration table for tertiary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '', no tertiary variables will be generated.
   - **`indicators`** *(string, required)*: Path to indicator configuration table, relative to working directory. See [indicators.md](indicators.md) for more detail. Optional - if set to '', no indicators will be generated.
   - **`periods`** *(string, required)*: Path to period configuration table, relative to working directory. See [periods.md](periods.md) for more detail. Required table.
   - **`seasons`** *(string, required)*: Path to season configuration table, relative to working directory. See [seasons.md](seasons.md) for more detail. Required table.
 - **`dirs`** *(object, required)*: Directories for storing output and intermediate files. Can be specified as either absolute paths, or relative to the working directory. See the [KAPy concepts](../KAPy_concepts.md) documentation for a more detailed description of these items. Cannot contain additional properties.
-  - **`variables`** *(string, required)*: Directory for storing variables.
+  - **`primaryVariables`** *(string, required)*: Directory for storing primary variables.
+  - **`secondaryVariables`** *(string, required)*: Directory for storing secondary variables.
   - **`calibration`** *(string, required)*: Directory for storing calibrated variables.
+  - **`tertiaryVariables`** *(string, required)*: Directory for storing tertiary variables.
   - **`indicators`** *(string, required)*: Directory for storing indicators.
   - **`regridded`** *(string, required)*: Directory for storing indicators regridded to a common grid.
   - **`ensstats`** *(string, required)*: Directory for storing ensemble statistics.
