@@ -104,7 +104,7 @@ def validateConfig(config):
         # We allow some columns to be defined here as lists, but these need to be
         # parsed before we can actually use them for something
         for col in theseVals["listCols"]:
-            thisTbl[col] = thisTbl[col].str.split(",")
+            thisTbl[col] = thisTbl[col].apply(lambda x: [item.strip() for item in x.split(",")] if pd.notnull(x) else [])
         # Note that Snakemake doesn't validate arrays in tabular configurations at the moment
         # https://github.com/snakemake/snakemake/issues/2601
         # We therefore need to drop the list columns from the validation scheme
