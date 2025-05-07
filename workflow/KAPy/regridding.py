@@ -28,8 +28,9 @@ def regrid(config, inFile, outFile):
     # Setup input files
     # ------------------
     # Note that as this is an indicator file, we open it as a dataset
+    time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
     thisDat = xr.open_dataset(inFile[0],
-                              use_cftime=True)
+                              decode_times=time_coder)
     # Identify time coordinate
     if 'time' in thisDat.dims:
         tCoord='time'

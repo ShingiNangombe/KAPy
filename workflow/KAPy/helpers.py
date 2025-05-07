@@ -48,9 +48,10 @@ def readFile(thisPath,format=None,chunks={}):
         format = os.path.splitext(os.path.basename(thisPath))[1]
     if format == ".nc":
         try:
+            time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
             thisDat = xr.open_dataarray(thisPath,
                                         chunks=chunks, #Use supplied chunking
-                                        use_cftime=True)
+                                        decode_times=time_coder)
         except Exception as e:
             raise IOError(f"Failed to open NetCDF file '{thisPath}': {e}")
     

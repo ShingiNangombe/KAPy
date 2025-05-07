@@ -26,8 +26,9 @@ def generateArealstats(config, inFile, outFile):
     # Setup xarray
     # Note that we need to use open_dataset here, as the ensemble files have
     # multiple data variables in them
+    time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
     thisDat = xr.open_dataset(inFile[0],
-                              use_cftime=True)
+                              decode_times=time_coder)
 
     #Identify the time / period coordinate first
     if 'time' in thisDat.dims:
