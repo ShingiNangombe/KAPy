@@ -255,9 +255,11 @@ def getWorkflow(config):
     # here is very similar to secondary variables, but we only draw on
     # the variables in the post-calibration palette (postcalPal) instead of the full variable
     # palette. Ideally this should be merged into a function.
-    postcalPal = parseFilelist([k for v in calDict.values() for k in v.keys()])
+    # Note that tertiary variables can only be created if there are calibration variables 
+    # created first
     tvDict = {}
-    if "tertiaryVars" in config:
+    if ("tertiaryVars" in config) and ("calibration" in config):
+        postcalPal = parseFilelist([k for v in calDict.values() for k in v.keys()])
         for thisTV in config["tertiaryVars"].values():
             # Filter by the input variables needed for this derived variable
             selThese = [v in thisTV["inputVars"] for v in postcalPal["varID"]]
