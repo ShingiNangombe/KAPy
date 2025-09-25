@@ -76,12 +76,11 @@ def regrid(config, inFile, outFile):
 
     # Apply regriddinng
     # ------------------
-    #Ideally unmapped_to_nan should be True, but these causes segmentation faults
-    #in xESMF v0.8.8. May be fixed in future versions. Generally this is not a problem
-    #however, as we mask the output later in the process, removing any unmapped areas
+    #Note that the unmapped_to_nan can be a bit problematic, and caused segmentation faults
+    #in xESMF v0.8.8. This should be fixed in v0.8.10.
     regrdr=xe.Regridder(thisDat,refGrd,
                         method=config["outputGrid"]["method"],
-                        unmapped_to_nan=False)  
+                        unmapped_to_nan=True)  
     
     #Do regridding
     regrdded=regrdr(thisDat,keep_attrs=True)
