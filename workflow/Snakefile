@@ -248,8 +248,7 @@ if config['outputGrid']['templateType']!='none':
         input:
             inputFile=lambda wildcards: wf['regridded'][os.path.join(outDirs['regridded'],
                                                            wildcards.indID,
-                                                           wildcards.fname)],
-            template=config['outputGrid']["path"]
+                                                           wildcards.fname)]
         run:
             KAPy.regrid(config,input.inputFile,output)
 
