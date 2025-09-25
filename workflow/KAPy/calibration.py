@@ -51,7 +51,8 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
                                                 suffix=".nc").name
     regrdr=xe.Regridder(histsim,refds,
                        method="nearest_s2d",
-                       filename=regrdWtsFname)
+                       filename=regrdWtsFname,
+                       unmapped_to_nan=True)
     # Then apply the regridding. 
     # The regridder seems to work best when it can work with all of the spatial elements 
     # together, implying full spatial chunking. But this creates problems with the later
