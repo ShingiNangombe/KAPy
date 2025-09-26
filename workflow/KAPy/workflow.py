@@ -395,6 +395,10 @@ def getWorkflow(config):
         .to_dict()
     )
 
+    #Separate the lists of area statistics into ensstats and members for use in
+    #the database output
+    dbDict= asTbl.groupby("type").apply(lambda x: list(x["asPath"]), include_groups=False).to_dict()
+
     # Plots----------------------------------------------------
     #Get list of areal statistics csv files (in the ensstats version)
     csvList = pd.DataFrame(list(asDict.keys()), columns=["path"])
@@ -427,16 +431,16 @@ def getWorkflow(config):
         # * Yearly (or monthly) based indicators show a time series, also for ensemble statistcs
         if thisInd["time_binning"] == "periods":
             # Box plot - requires ensemble csv files
-            bxpFname = os.path.join(outDirs["plots"], f"{thisInd['id']}_boxplot.png")
+            bxpFname = os.path.join(outDirs["outputs"],'plots', f"{thisInd['id']}_boxplot.png")
             pltDict[bxpFname] = csvDict[str(thisInd["id"])]
 
             # Spatial plot - requires ensemble netcdf files
-            spFname = os.path.join(outDirs["plots"], f"{thisInd['id']}_spatial.png")
+            spFname = os.path.join(outDirs["outputs"],'plots', f"{thisInd['id']}_spatial.png")
             pltDict[spFname] = ncDict[str(thisInd["id"])]
 
         elif thisInd["time_binning"] in ["years", "months"]:
             # Time series plot - requires ensemble csv files
-            lpFname = os.path.join(outDirs["plots"], f"{thisInd['id']}_lineplot.png")
+            lpFname = os.path.join(outDirs["outputs"],'plots', f"{thisInd['id']}_lineplot.png")
             pltDict[lpFname] = csvDict[str(thisInd["id"])]
 
     # Collate and round off----------------------------------------------
@@ -449,6 +453,7 @@ def getWorkflow(config):
         "regridded": rgDict,
         "ensstats": ensDict,
         "arealstats": asDict,
+        "database":dbDict,
         "plots": pltDict,
     }
     # Create an "all" dict  containing 
@@ -462,9 +467,8 @@ def getWorkflow(config):
                  "indicators"]:  # Requires special handling, as these are nested lists
             for x in v.values():
                 allList += x.keys()
-        # elif k in ["secondaryVars"]:  # Requires special handling, as these are nested lists
-        #     for x in v.values():
-        #         allList += x["files"]
+        elif k in ["database"]:  # Skip
+            continue
         else:
             allList += v.keys()
     rtn["all"] = allList

@@ -15,7 +15,7 @@ dirs:
     regridded: 'outputs/06.commmon_grid'
     ensstats: 'outputs/07.ensstats'
     arealstats: 'outputs/08.areal_statistics'
-    plots: 'outputs/09.plots'
+    outputs: 'outputs/09.outputs'
     tempDir: 'outputs/tmp'
 
 # Configuration options------------------------------------

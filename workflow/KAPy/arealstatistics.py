@@ -16,10 +16,7 @@ inFile=wf['arealstats'][asID]
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
-import numpy as np
-import os
 from cdo import Cdo
-from . import helpers
 
 def generateArealstats(config, inFile, outFile):
     # Generate statistics over an area by applying a polygon mask and averaging
@@ -81,7 +78,7 @@ def generateArealstats(config, inFile, outFile):
 
             #Output object
             thisOut=pd.concat([wtMeanDf,wtSdDf])
-            thisOut['areaID'] =thisArea[config['arealstats']['idColumn']] 
+            thisOut.insert(0,'areaID',thisArea[config['arealstats']['idColumn']] )
             outList += [thisOut]
         dfOut=pd.concat(outList)
 
@@ -97,7 +94,7 @@ def generateArealstats(config, inFile, outFile):
 
         # Save files pandas
         dfOut = pd.concat([spMeanDf,spSdDf])
-        dfOut["areaID"] = "all"  
+        dfOut.insert(0,'areaID',"all" )
 
     #Write out date without time for easier handling
     dfOut=dfOut.reset_index()
@@ -108,29 +105,4 @@ def generateArealstats(config, inFile, outFile):
     dfOut.to_csv(outFile[0],index=False)
 
 
-
-"""
-inFiles=wf['arealstats'].keys()
-outFile=["results/5.areal_statistics/Areal_statistics.csv"]
-"""
-
-def combineArealstats(config, inFiles, outFile):
-    #Load individual files
-    dat = []
-    for f in inFiles:
-        datIn=pd.read_csv(f)
-        datIn.insert(0,'sourcePath',f)
-        datIn.insert(0,'filename',os.path.basename(f))
-        dat += [datIn]
-    datdf = pd.concat(dat)
-    
-    #Split out the defined elements
-    datdf.insert(2,'memberID',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.*).csv$"))
-    datdf.insert(2,'expt',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'gridID',datdf['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'datasetID',datdf['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'indID',datdf['filename'].str.extract("^([^_]+)_.*$"))
-
-    #Drop the filename and write out
-    datdf.drop(columns=['filename','sourcePath']).to_csv(outFile[0],index=False)
 

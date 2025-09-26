@@ -272,16 +272,6 @@ rule ensstats_file:
 
 #Areal statistics------------------
 #Areal statistics are calculated for both the enssemble statistics and individual members
-#Note that we don't include the combined statistics in the workflow, as we would to be able to
-#overwrite the naming of this output file from e.g. another project.
-rule arealstats:
-    input:
-        list(wf['arealstats'].keys())
-    output:
-        os.path.join(outDirs['arealstats'],'Areal_statistics.csv')
-    run:
-        KAPy.combineArealstats(config,input,output)
-
 
 #Singular rule
 #Depending on whether we are using a shapefile or not, we may want to include the shapefile
@@ -309,6 +299,18 @@ else:  #No dependency on the shapefile
 # Outputs ---------------------------------
 # Plots, amongst other things
 
+rule database:
+    input:
+        ensstats=wf['database']['ensstats'],
+        members=wf['database']['members'],
+    output:
+        os.path.join(outDirs['outputs'],'KAPy_outputs.sqlite')
+    run:
+        KAPy.writeToDatabase(config,
+                             ensstats=input.ensstats, 
+                             members=input.members,
+                             outFile=output)
+
 #Plots
 rule plots:
     input:
@@ -316,27 +318,27 @@ rule plots:
         
 rule plots_lineplots:
     output:
-        os.path.join(outDirs['plots'],'{indID}_lineplot.png')
+        os.path.join(outDirs['outputs'],'plots','{indID}_lineplot.png')
     input:
-        lambda wildcards: wf['plots'][os.path.join(outDirs['plots'],
+        lambda wildcards: wf['outputs'][os.path.join(outDirs['outputs'],'plots',
                                                    f"{wildcards.indID}_lineplot.png")]
     run:
         KAPy.makeLineplot(config,wildcards.indID,input,output)
 
 rule plots_boxplots:
     output:
-        os.path.join(outDirs['plots'],'{indID}_boxplot.png')
+        os.path.join(outDirs['outputs'],'plots','{indID}_boxplot.png')
     input:
-        lambda wildcards: wf['plots'][os.path.join(outDirs['plots'],
+        lambda wildcards: wf['plots'][os.path.join(outDirs['outputs'],'plots',
                                                    f"{wildcards.indID}_boxplot.png")]
     run:
         KAPy.makeBoxplot(config,wildcards.indID,input,output)
 
 rule plots_spatial:
     output:
-        os.path.join(outDirs['plots'],'{indID}_spatial.png')
+        os.path.join(outDirs['outputs'],'plots','{indID}_spatial.png')
     input:
-        lambda wildcards: wf['plots'][os.path.join(outDirs['plots'],
+        lambda wildcards: wf['plots'][os.path.join(outDirs['outputs'],'plots',
                                                    f"{wildcards.indID}_spatial.png")]
     run:
         KAPy.makeSpatialplot(config,wildcards.indID,input,output)
@@ -346,6 +348,6 @@ rule plots_spatial:
 rule all:
     input:
         wf['all'],
-        rules.arealstats.output
+        rules.database.output
     default_target: True
 

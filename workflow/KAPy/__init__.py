@@ -11,3 +11,4 @@ from .indicators import *
 from .workflow import getWorkflow
 from .plots import *
 from .helpers import *
+from .outputs import *
