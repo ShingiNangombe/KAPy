@@ -2,14 +2,11 @@
 #Setup for debugging with VS code 
 import os
 print(os.getcwd())
-import helpers
 os.chdir("..")
 import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
-asID=list(wf['arealstats'].keys())[0]
-inFile=wf['arealstats'][asID]
 %matplotlib inline
 """
 
@@ -21,40 +18,90 @@ import os
 """
 ensstats=wf['database']['ensstats']
 members=wf['database']['members']
-outFile=os.path.join(config['dirs']['outputs'],'KAPy_outputs.sqlite')
+outFile=[os.path.join(config['dirs']['outputs'],'KAPy_outputs.sqlite')]
 """
 
 def writeToDatabase(config, ensstats, members, outFile):
     #Load data file function
-    def loadDataFiles(inFiles):
-        dat = []
-        for f in inFiles:
-            datIn=pd.read_csv(f)
-            datIn.insert(0,'sourcePath',f)
-            datIn.insert(0,'filename',os.path.basename(f))
-            dat += [datIn]
-        datdf = pd.concat(dat)
+    def prepareDataFile(thisPath):
+        #Load file
+        datIn=pd.read_csv(thisPath)
         
-        #Split out the defined elements
-        datdf.insert(2,'expt',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
-        datdf.insert(2,'gridID',datdf['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
-        datdf.insert(2,'datasetID',datdf['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
-        datdf.insert(2,'indID',datdf['filename'].str.extract("^([^_]+)_.*$"))
+        #Process filename 
+        datIn.insert(0,'filename',os.path.basename(thisPath))
+        datIn.insert(2,'memberID',datIn['filename'].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.*).csv$"))
+        datIn.insert(2,'expt',datIn['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
+        datIn.insert(2,'gridID',datIn['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
+        datIn.insert(2,'datasetID',datIn['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
+        datIn.insert(2,'indID',datIn['filename'].str.extract("^([^_]+)_.*$"))
 
-        #Drop the filename
-        datout=datdf.drop(columns=['filename','sourcePath','index'])
-        return(datout)
+        #Finish
+        datOut=datIn.drop(columns=["filename","index"])
+        return(datOut)
     
-    #Load data
-    esDat=loadDataFiles(ensstats)
-    memDat=loadDataFiles(members)
-
-    # Connect to (or create) a SQLite database
+    # Connect to (or create) a SQLite database - Delete the file if it exists
+    if os.path.exists(outFile[0]):
+        os.remove(outFile[0])
     conn = sqlite3.connect(outFile[0])
 
-    # Write DataFrames to separate tables
-    esDat.to_sql("Ensemble_statistics", conn, if_exists="replace", index=False)
-    memDat.to_sql("Ensemble_members", conn, if_exists="replace", index=False)
+    # Create ensemble members table
+    conn.execute("""
+        CREATE TABLE Ensemble_members (
+            datasetID TEXT NOT NULL,
+            indID TEXT NOT NULL,
+            areaID TEXT NOT NULL,
+            memberID TEXT NOT NULL,
+            expt TEXT NOT NULL,
+            gridID TEXT NOT NULL,
+            seasonID TEXT NOT NULL,
+            periodID TEXT NOT NULL,
+            arealStatistic TEXT NOT NULL,
+            indicator REAL,
+            delta REAL
+        );
+        """)
+
+    #Load and then write member statistics
+    with conn:  # wraps everything in one transaction
+        for f in members:
+            df = prepareDataFile(f)
+            df.to_sql("Ensemble_members", conn, if_exists="append", index=False, chunksize=5000)
+
+
+    # Create ensemble statistics table
+    conn.execute("""
+        CREATE TABLE Ensemble_statistics (
+            datasetID TEXT NOT NULL,
+            indID TEXT NOT NULL,
+            areaID TEXT NOT NULL,
+            memberID TEXT NOT NULL,
+            expt TEXT NOT NULL,
+            gridID TEXT NOT NULL,
+            seasonID TEXT NOT NULL,
+            periodID TEXT NOT NULL,
+            percentiles REAL,
+            arealStatistic TEXT NOT NULL,
+            indicator_mean REAL,
+            indicator_n INTEGER,
+            indicator_max REAL,
+            indicator_min REAL,
+            indicator_percentiles REAL,
+            indicator_stdev REAL,
+            delta_mean REAL,
+            delta_n INTEGER,
+            delta_max REAL,
+            delta_min REAL,
+            delta_percentiles REAL,
+            delta_stdev REAL
+        );
+    """)
+
+    #Load and then write member statistics
+
+    with conn:  # wraps everything in one transaction
+        for f in ensstats:
+            df = prepareDataFile(f)
+            df.to_sql("Ensemble_statistics", conn, if_exists="append", index=False, chunksize=5000)
 
     #Set indexing
     cursor = conn.cursor()
