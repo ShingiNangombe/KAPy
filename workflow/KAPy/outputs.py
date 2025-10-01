@@ -21,7 +21,7 @@ members=wf['database']['members']
 outFile=[os.path.join(config['dirs']['outputs'],'KAPy_outputs.sqlite')]
 """
 
-def writeToDatabase(config, ensstats, members, outFile):
+def writeToDatabase(outFile, ensstats, members):
     #Load data file function
     def prepareDataFile(thisPath):
         #Load file
@@ -113,8 +113,8 @@ def writeToDatabase(config, ensstats, members, outFile):
     conn.close()
 
     #Write a csv version as well
-    esDat.to_csv(os.path.join(config['dirs']['outputs'],"Ensemble_statistics.csv"),index=False)
-    memDat.to_csv(os.path.join(config['dirs']['outputs'],"Ensemble_members.csv"),index=False)
+ #   esDat.to_csv(os.path.join(config['dirs']['outputs'],"Ensemble_statistics.csv"),index=False)
+  #  memDat.to_csv(os.path.join(config['dirs']['outputs'],"Ensemble_members.csv"),index=False)
 
 
 

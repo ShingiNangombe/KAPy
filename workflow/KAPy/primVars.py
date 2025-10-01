@@ -31,20 +31,7 @@ from . import helpers
 from . import workflow
 
 #-----------------------------------------------------------------
-def defaultImport(config, inFiles, inpID):
-	"""
-	Default import function
-	
-	Builds a set of input files into a single xarray-based dataset object
-
-	Args:
-		config (_type_): Configuration object
-		inFiles (_type_): List of input files
-		inpID (_type_): ID of the input files
-	"""
-	# Get input configuration
-	thisInp = config["inputs"][inpID]
-
+def defaultImport(inFiles,varID,internalVarName ):
 	# Make dataset object using xarray lazy load approach.
 	# Apply a manual sort ensures that the time axis is correct
 	# Use the join="override" argument to handle the case where
@@ -64,14 +51,14 @@ def defaultImport(config, inFiles, inpID):
 	dsIn=dsIn.sortby('time')
 
 	# Select the desired variable and rename it
-	ds = dsIn.rename({thisInp["internalVarName"]: thisInp["varID"]})
-	da = ds[thisInp["varID"]]  # Convert to dataarray
+	ds = dsIn.rename({internalVarName: varID})
+	da = ds[varID]  # Convert to dataarray
 
 	# Drop degenerate dimensions. If any remain, throw an error
 	da = da.squeeze(drop=True)
 	if len(da.dims) != 3:
-		sys.exit(
-			f"Extra dimensions found in processing '{inpID}' - there should be only "
+		raise ImportError(
+			f"Extra dimensions found during import - there should be only "
 			+ f"three dimensions after degenerate dimensions are dropped but "
 			+ f"found {len(da.dims)} i.e. {da.dims}."
 		)
@@ -90,7 +77,7 @@ def defaultImport(config, inFiles, inpID):
 
 
 #-----------------------------------------------------------------
-def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID):
+def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID,**kwargs):
 	"""
 	Apply cutout based on lonlat
 
@@ -112,6 +99,8 @@ def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID):
 		Maximum coordinate in the y direction
 	varID : _type_
 		Name of the variable ID contained in the dataset
+	kwargs:
+		Absorb any extra arguments
 	"""
 	# Extract first time step. This avoids having to work
 	# with the entire dataset.
@@ -133,38 +122,22 @@ def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID):
 
 
 #-----------------------------------------------------------------	
-def buildPrimVar(config, inFiles, outFile, inpID):
-	"""
-	Build primary variables
-
-	Controls the import of data and generation of primary variables
-
-	Args:
-		config (_type_): Configuration object
-		inFiles (_type_): List of input files
-		outFile (_type_): Output file
-		inpID (_type_): Input item ID
-	"""
-	# Get input configuration
-	thisInp = config["inputs"][inpID]
-
+def buildPrimVar(outFile, inFiles,varID,internalVarName,importScriptPath,importScriptFunction,
+				 units, picklePrimaryVariables,cutoutArgs,**kwargs):
 	# If an import function is defined, use that. Otherwise use the default
-	if thisInp["importScriptPath"]=='':
+	if importScriptPath=='':
 		#Use default import
-		da= defaultImport(config, inFiles, inpID)
+		da= defaultImport(inFiles=inFiles, 
+					varID=varID,
+					internalVarName=internalVarName)
 		#Apply cutout functionality
-		if config["cutouts"]["method"] == "lonlatbox":
-			da=cutout_lonlat(da,
-					config["cutouts"]["xmin"],
-					config["cutouts"]["xmax"],
-					config["cutouts"]["ymin"],
-					config["cutouts"]["ymax"],
-					thisInp["varID"])
+		if cutoutArgs["method"] == "lonlatbox":
+			da=cutout_lonlat(da,**cutoutArgs,varID=varID)
 
 	else:
 		#Use a custom import
-		imptFn=helpers.getExternalFunction(thisInp["importScriptPath"], thisInp["importScriptFunction"])
-		da = imptFn(config, inFiles, inpID)  
+		imptFn=helpers.getExternalFunction(importScriptPath, importScriptFunction)
+		da = imptFn(inFiles,varID=varID,internalVarName=internalVarName)  
 
 	# Unit handling -----------------------------
 	# Note that this is enforced here, even if it is already handled in the custom
@@ -173,24 +146,24 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 	# Case 1 - no units attribute on da: 
 	# => Set units directly but fail if not specified
 	if not 'units' in da.attrs:
-		if thisInp['units']=='':
-			raise ValueError(f"Units argument for inputID '{inpID}' is blank but needs to be supplied in cases where there are no units in the input file.")
+		if units=='':
+			raise ValueError(f"Units argument is blank but needs to be supplied in cases where there are no units in the input file.")
 		else:
-			da.attrs['units'] = thisInp['units']
+			da.attrs['units'] = units
 
 	# Case 2 - da has units, but argument is null:
 	# => leave as in
 
 	# Case 3 - da has units, argument is specified
 	# => Convert units of data to specified
-	elif not thisInp['units']=='':
-		da=xclim.core.units.convert_units_to(da,thisInp['units'])
+	elif not units=='':
+		da=xclim.core.units.convert_units_to(da,units)
 	
 	# Check that the unit choice is sane
 
 	# Output --------------------
 	# Write the dataset object to disk, depending on the configuration
-	if config['processing']['picklePrimaryVariables']:
+	if picklePrimaryVariables:
 		with open(outFile[0],'wb') as f:
 			pickle.dump(da,f,protocol=-1)
 	else:
@@ -204,11 +177,13 @@ def buildPrimVar(config, inFiles, outFile, inpID):
 		#Now use the chunking scheme as the basis for writing out the encoding
 		try:
 			daFloat.to_netcdf(outFile[0],
-						encoding={thisInp["varID"]:{'chunksizes':chunkThisWay,
+						encoding={varID:{'chunksizes':chunkThisWay,
 								'zlib': True,
 								'complevel':1}})
 		except Exception as e:
 			raise RuntimeError(f"Writing NetCDF file '{outFile[0]}' to disk failed with error: {e}") 
+
+
 
 def VariableOverview(config):
 	#Get workflow

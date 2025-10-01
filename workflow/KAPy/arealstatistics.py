@@ -18,7 +18,7 @@ import pandas as pd
 import geopandas as gpd
 from cdo import Cdo
 
-def generateArealstats(config, inFile, outFile):
+def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idColumn):
     # Generate statistics over an area by applying a polygon mask and averaging
     # Setup xarray
     # Note that we need to use open_dataset here, as the ensemble files have
@@ -42,8 +42,8 @@ def generateArealstats(config, inFile, outFile):
     spGrid=thisDat.isel({k : 0 for k in nonspDims},drop=True)[list(thisDat.data_vars)[0]]
 
     # If using area weighting, get the pixel size
-    if config['arealstats']['useAreaWeighting']:
-        cdo=Cdo(tempdir=config['dirs']['tempDir'])
+    if useAreaWeighting:
+        cdo=Cdo(tempdir=tempDir)
         pxlSize=cdo.gridarea(input=spGrid,returnXArray='cell_area')
     else:
         pxlSize=spGrid
@@ -51,9 +51,9 @@ def generateArealstats(config, inFile, outFile):
         pxlSize.name="cell_area"
 
     # If we have a shapefile defined, then work with it
-    if config['arealstats']['shapefile']!='':
+    if shapefile!='':
         #Import shapefile and drop CRS
-        shapefile = gpd.read_file(config['arealstats']['shapefile'])
+        shapefile = gpd.read_file(shapefile)
         shapefile.crs=None
 
         #Use geopandas as the base for this computation. We use the 
@@ -78,7 +78,7 @@ def generateArealstats(config, inFile, outFile):
 
             #Output object
             thisOut=pd.concat([wtMeanDf,wtSdDf])
-            thisOut.insert(0,'areaID',thisArea[config['arealstats']['idColumn']] )
+            thisOut.insert(0,'areaID',thisArea[idColumn] )
             outList += [thisOut]
         dfOut=pd.concat(outList)
 

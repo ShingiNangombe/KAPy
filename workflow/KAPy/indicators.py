@@ -22,16 +22,14 @@ import json
 import pandas as pd
 from . import helpers 
 
-def calculateIndicators(config, inFile, outFile, indID):
-
-    # Retrieve indicator information
-    thisInd = config["indicators"][indID]
+def calculateIndicators(outFile, inFile,seasonsTable,periodsTable,seasons,time_binning,statistic,deltaType,
+                        additionalArgs,customScriptPath,customScriptFunction,**kwargs):
 
     #Setup seasons
-    if "all" in thisInd['seasons']:
-        indSeasons=list(config["seasons"].keys())
+    if "all" in seasons:
+        indSeasons=list(seasonsTable.keys())
     else:
-        indSeasons = thisInd["seasons"]
+        indSeasons = seasons
 
     # Read the dataset object back from disk, depending on the configuration
     thisDat = helpers.readFile(inFile[0])
@@ -59,8 +57,8 @@ def calculateIndicators(config, inFile, outFile, indID):
             res=comp.groupby("time.year").sum().mean(dim="year")
         elif thisStat=="custom":
             #Use a custom function
-            custFn=helpers.getExternalFunction(thisInd["customScriptPath"],
-                                               thisInd["customScriptFunction"])
+            custFn=helpers.getExternalFunction(customScriptPath,
+                                               customScriptFunction)
             res = custFn(d)  
         else:
             raise ValueError(f"Unknown indicator statistic, '{thisStat}'")
@@ -68,9 +66,9 @@ def calculateIndicators(config, inFile, outFile, indID):
 
     # Time binning over periods
     # ----------------------------------
-    if thisInd["time_binning"] == "periods":
+    if time_binning == "periods":
         periodSlices = []
-        for thisPeriod in config["periods"].values():
+        for thisPeriod in periodsTable.values():
             # Slice dataset by time
             # It is possible that we end with an empty slice at this stage e.g. when
             # working with observations, but with time slices in the future. We handle
@@ -84,7 +82,7 @@ def calculateIndicators(config, inFile, outFile, indID):
                 # just cause things to break. So, only filter data by season if there
                 # is something to filter
                 if datPeriod.time.size !=0:
-                    theseMonths = config["seasons"][thisSeason]["months"]
+                    theseMonths = seasonsTable[thisSeason]["months"]
                     datPeriodSeason = datPeriod.sel(time=np.isin(datPeriod.time.dt.month, theseMonths))
                     #Test for an empty slice
                     mtSlice=(datPeriodSeason.time.size == 0)
@@ -100,8 +98,8 @@ def calculateIndicators(config, inFile, outFile, indID):
                 # Else apply the operator
                 else:
                     res=applyStat(datPeriodSeason,
-                                thisInd["statistic"],
-                                thisInd["additionalArgs"])
+                                statistic,
+                                additionalArgs)
                 # Store output
                 res["seasonID"] = thisSeason
                 seasonSlices.append(res)
@@ -120,12 +118,12 @@ def calculateIndicators(config, inFile, outFile, indID):
 
     # Time binning by years
     # ----------------------------
-    elif thisInd["time_binning"] in ["years"]:
+    elif time_binning in ["years"]:
         #Loop over seasons
         seasonTimeseries=[]
         for thisSeason in indSeasons:
             #Filter data by season
-            theseMonths = config["seasons"][thisSeason]["months"]
+            theseMonths = seasonsTable[thisSeason]["months"]
             datSeason = thisDat.sel(time=np.isin(thisDat.time.dt.month, theseMonths))
 
             # Then group by time. Could consider using groupby as an alternative
@@ -133,8 +131,8 @@ def calculateIndicators(config, inFile, outFile, indID):
         
             # Apply the operator
             res=applyStat(datGroupped,
-                            thisInd["statistic"],
-                            thisInd["additionalArgs"])
+                            statistic,
+                            additionalArgs)
                             # Store output
             #Store the results
             res["seasonID"] = thisSeason
@@ -157,44 +155,47 @@ def calculateIndicators(config, inFile, outFile, indID):
                                                  1)
                                                 for x in dout.time]
     else:
-        raise ValueError(f"Unknown time_binning method, '{thisInd["time_binning"]}'.")
+        raise ValueError(f"Unknown time_binning method, '{time_binning}'.")
 
 
     # Calculation of changes
     # ------------------------
     # First we need the values for the reference period. That's easy for
     # period binning, but we need to calculate it for annual binning
-    if thisInd["time_binning"] == "periods":
+    if time_binning == "periods":
         # We use the first periodID as the reference here
         ref=dout.isel(periodID=0)
-    elif thisInd["time_binning"] in ["years"]:
+    elif time_binning in ["years"]:
         # Again use the first time period, but average
-        refPeriod=list(config["periods"].values())[0]
+        refPeriod=list(periodsTable.values())[0]
         refDat=helpers.timeslice(dout,refPeriod["start"],refPeriod["end"])
         ref=refDat.mean(dim='time')
     else:
-        raise ValueError(f"Unknown time_binning method, '{thisInd["time_binning"]}'.")
+        raise ValueError(f"Unknown time_binning method, '{time_binning}'.")
 
     #Calculate change
-    if thisInd['deltaType']=='subtract':
+    if deltaType=='subtract':
         deltaOut=dout-ref
-    elif thisInd['deltaType']=='divide':
+    elif deltaType=='divide':
         deltaOut=dout/ref
     else:
-        raise ValueError(f"Unknown deltaType method, '{thisInd["deltaType"]}'.")
-    deltaOut.attrs['deltaType']=thisInd['deltaType']
+        raise ValueError(f"Unknown deltaType method, '{deltaType}'.")
+    deltaOut.attrs['deltaType']=deltaType
 
     # Polish final product
     # ----------------------
     #Merge into one object. Add attributes
     ds=xr.Dataset({'indicator':dout,'delta':deltaOut})
     ds.attrs = {}
-    for thiskey in thisInd.keys():
-        if thiskey != "files":
-            ds.attrs[thiskey] = str(thisInd[thiskey])
-    ds.attrs["seasonID_dict"] = json.dumps(config['seasons'])
-    if thisInd["time_binning"] == "periods":
-        ds.attrs["periodID_dict"]= json.dumps(config['periods'])
+    ds.attrs['time_binning']=time_binning
+    ds.attrs['statistic']=statistic
+    ds.attrs['deltaType']=deltaType
+    ds.attrs['additionalArgs']=str(additionalArgs)
+    ds.attrs['customScriptPath']=customScriptPath
+    ds.attrs["customScriptFunction"]=customScriptFunction
+    ds.attrs["seasonID_dict"] = json.dumps(seasonsTable)
+    if time_binning == "periods":
+        ds.attrs["periodID_dict"]= json.dumps(periodsTable)
 
     # Write out
     ds.to_netcdf(outFile[0])

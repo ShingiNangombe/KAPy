@@ -38,7 +38,7 @@ def getWorkflow(config):
         #First, handle case where we don't find any files. We could ignore it,
         # but it's best to throw an error
         if len(inpTbl)==0:
-            sys.exit(f'No files found for input path "{thisInp["path"]}"')
+            raise FileNotFoundError(f'No files found for input path "{thisInp["path"]}"')
         
         # If we only get one file, then there's not really much to do - that file
         # is the only member of the ensemble and we use it more or less directly
@@ -134,7 +134,7 @@ def getWorkflow(config):
 
         # Build the full filename and tidy up the output into a dict
         pvTbl["pvPath"] = [
-            os.path.join(outDirs["primaryVariables"], thisInp["varID"], f)
+            os.path.join(outDirs["primaryVariables"], thisKey, f)
             for f in pvTbl["pvFname"]
         ]
 
@@ -144,7 +144,7 @@ def getWorkflow(config):
         
         #Prior to adding to the pvDict, check that we have unique keys
         if any(pvTbl['pvPath'].isin(pvDict.keys())):
-            sys.exit("Duplicate keys found in generating primary variables.")
+            raise ValueError("Duplicate keys found in generating primary variables.")
 
         #Finally, make the dict
         pvDict[thisKey] =(
@@ -171,7 +171,7 @@ def getWorkflow(config):
     # Iterate over secondary variables if they are request
     svDict = {}
     if "secondaryVars" in config:
-        for thisSV in config["secondaryVars"].values():
+        for thisKey,thisSV in config["secondaryVars"].items():
             # Now filter by the input variables needed for this derived variable
             selThese = [v in thisSV["inputVars"] for v in varPal["varID"]]
             longSVTbl = varPal[selThese]
@@ -188,7 +188,7 @@ def getWorkflow(config):
 
             # Now we have a list of valid files that can be made. Store the results
             svTbl['outFile'] = [
-                os.path.join(outDirs["secondaryVariables"], thisSV["outputVars"][0], fName)
+                os.path.join(outDirs["secondaryVariables"], thisKey, fName)
                 for fName in f"{thisSV["outputVars"][0]}_" + svTbl["datasetID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
             ]
 
@@ -210,7 +210,7 @@ def getWorkflow(config):
     calDict = {}
     # Iterate over secondary variables if they are request
     if "calibration" in config:
-        for thisCal in config["calibration"].values():
+        for thisKey,thisCal in config["calibration"].items():
             # Now filter by the input variables needed for this calibration 
             selThese = (varPal["varID"] ==thisCal['calibrationVariable']) & \
                         (varPal["datasetID"]==thisCal['targetDatasetID'])
@@ -235,7 +235,7 @@ def getWorkflow(config):
 
             # Now we have a list of valid files that can be made. Store the results
             calTbl['outFile'] = [
-                os.path.join(outDirs["calibration"], thisCal["calibrationVariable"], fName)
+                os.path.join(outDirs["calibration"], thisKey, fName)
                 for fName in f"{thisCal["calibrationVariable"]}_" + thisCal["outDatasetID"] + "_" + refDict['gridID']+"_"+calTbl["expt"]+"_"+calTbl["stems"]+".nc"
             ]
 
@@ -260,7 +260,7 @@ def getWorkflow(config):
     tvDict = {}
     if ("tertiaryVars" in config) and ("calibration" in config):
         postcalPal = parseFilelist([k for v in calDict.values() for k in v.keys()])
-        for thisTV in config["tertiaryVars"].values():
+        for thisKey,thisTV in config["tertiaryVars"].items():
             # Filter by the input variables needed for this derived variable
             selThese = [v in thisTV["inputVars"] for v in postcalPal["varID"]]
             longTVTbl = postcalPal[selThese]
@@ -277,7 +277,7 @@ def getWorkflow(config):
 
             # Now we have a list of valid files that can be made. Store the results
             tvTbl['outFile'] = [
-                os.path.join(outDirs["tertiaryVariables"], thisTV["outputVars"][0], fName)
+                os.path.join(outDirs["tertiaryVariables"], thisKey, fName)
                 for fName in f"{thisTV["outputVars"][0]}_" + tvTbl["datasetID"] + "_" + tvTbl['gridID']+"_"+tvTbl["expt"]+"_"+tvTbl["stems"]+".nc"
             ]
 
@@ -307,7 +307,7 @@ def getWorkflow(config):
         #Build the rest of the path
         varPal["indPath"] = [
             os.path.join(outDirs["indicators"],
-                         thisInd["id"],
+                         indKey,
                          rw["indFname"])
             for idx, rw in varPal.iterrows()
         ]

@@ -26,14 +26,11 @@ matplotlib.use('Agg')
 
 # Boxplot---------------------------------------------------------------------------
 """
-indID='i005'
-outFile='outputs/7.plots/i005_boxplot.png'
+outFile='outputs/09.outputs/plots/101_boxplot.png'
 srcFiles=wf['plots'][outFile]
 """
 
-def makeBoxplot(config, indID, srcFiles, outFile=None):
-    # Extract indicator info
-    thisInd = config["indicators"][indID]
+def makeBoxplot(outFile, srcFiles):
 
     # Load csv files as panadas dataframes
     # Note that we need to make sure that we read the ID's as strings
@@ -55,19 +52,11 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
     thisAreaID=datdf['areaID'].unique()[0]
     datdf=datdf[datdf['areaID']==thisAreaID]
 
-    # Get metadata from configuration
-    ptileTbl = (
-        pd.DataFrame.from_dict(
-            config["ensembles"], orient="index", columns=["percentiles"]
-        )
-        .reset_index()
-        .rename(columns={"index": "ptileLbl"})
-    )
-    periodTbl = pd.DataFrame.from_dict(config["periods"], orient="index")
-    periodLblDict = {
-        x["id"]: f"{x['name']}\n({x['start']}-{x['end']})"
-        for i, x in periodTbl.iterrows()
-    }
+    #Infer percentiles from data
+    ptileTbl=pd.DataFrame({"ptileLbl": ["lowerPercentile","centralPercentile","upperPercentile"],
+                           "percentiles": [datdf['percentiles'].min(),
+                                      datdf['percentiles'].median(),
+                                      datdf['percentiles'].max()]})
 
     # Now merge into dataframe and pivot for plotting
     pltLong = pd.merge(datdf, ptileTbl, on="percentiles", how="left")
@@ -98,11 +87,10 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
         )
         + labs(
             x="Period",
-            y=f"Value ({thisInd['units']})",
-            title=f"{thisInd['name']} - AreaID {thisAreaID}",
+            y=f"Value",
+            title=f"AreaID {thisAreaID}",
             fill="",
         )
-        + scale_x_discrete(labels=periodLblDict,    )
         + theme_bw()
         + theme(legend_position="bottom",
                  panel_grid_major_x=element_blank(),
@@ -118,13 +106,10 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
 
 # Spatialplot -----------------------------------------------------------
 """
-indID='i005'
-outFile='outputs/7.plots/i005_spatial.png'
+outFile='outputs/09.outputs/plots/101_spatial.png'
 srcFiles=wf['plots'][outFile]
 """
-def makeSpatialplot(config, indID, srcFiles, outFile=None):
-    # Extract indicator info
-    thisInd = config["indicators"][indID]
+def makeSpatialplot(outFile, srcFiles):
 
     # Read netcdf files using xarray and calculate difference
     datdf = []
@@ -142,14 +127,9 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
     pltDat = pd.concat(datdf)
     pltDat['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='noExpt' else rw['source']
                   for idx,rw in pltDat.iterrows()]
-
-    #Setup period labelling
-    periodTbl = pd.DataFrame.from_dict(config["periods"], orient="index")
-    periodLblDict = {
-        x["id"]: f"{x['name']}\n({x['start']}-{x['end']})"
-        for i, x in periodTbl.iterrows()
-    }
-    pltDat['periodLbl']= [ periodLblDict[p] for p in pltDat['periodID']]
+    
+    #Label periods
+    pltDat['periodLbl']=[f"Period {id}" for id in pltDat['periodID']]
 
     #Identify spatial coordinates
     spDimX=[d for d in thisdat.indexes.keys() if d in ['x','longitude','long','lon','eastings']]
@@ -169,9 +149,7 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
         + theme_bw()
         + labs(
             x="",
-            y="",
-            fill=f"Value\n({thisInd['units']})",
-            title=f"{thisInd['name']} "
+            y=""
         )
         + scale_x_continuous(expand=[0, 0])
         + scale_y_continuous(expand=[0, 0])
@@ -198,9 +176,7 @@ srcFiles=wf['plots'][outFile]
 """
 
 
-def makeLineplot(config, indID, srcFiles, outFile=None):
-    # Extract indicator info
-    thisInd = config["indicators"][indID]
+def makeLineplot(outFile,  srcFiles):
 
     # Load csv files as panadas dataframes
     dat = []
@@ -219,7 +195,7 @@ def makeLineplot(config, indID, srcFiles, outFile=None):
     # Now select data for plotting
     # We only plot the central value, not the full range
     # Drop the standard deviation - we only want the mean
-    pltDat = datdf[datdf["percentiles"] == config["ensembles"]["centralPercentile"]]
+    pltDat = datdf[datdf["percentiles"] == datdf["percentiles"].median()]
     pltDat = pltDat[pltDat["statistic"] == "mean"]
 
     # Now plot
@@ -229,9 +205,8 @@ def makeLineplot(config, indID, srcFiles, outFile=None):
         + geom_point()
         + labs(
             x="",
-            y=f"Value ({thisInd['units']})",
-            title=f"{thisInd['name']} ",
-            colour="",
+            y=f"Value",
+            colour=""
         )
         + theme_bw()
         + scale_x_datetime(date_labels="%Y")
