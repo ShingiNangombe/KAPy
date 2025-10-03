@@ -25,11 +25,14 @@ outDirs=config['dirs']
 #Generate filename dicts
 wf=KAPy.getWorkflow(config)
 
-# Singular rules -------------------------------------------
+# Wildcard rules -------------------------------------------
+# Wildcard rules are generic rules in Snakemake that deal with many files at a time -
+# in KAPy we preface all such rules with an underscore "_" and a number indicating
+# where in the processing chain their lie.
 # The wf dict describes the nodes that are linked in the pipeline that we are
 # trying to create, ie file c.nc is generated from files a.nc and b.nc. Here we
 # translate that mapping into snakemake by declaring the code required to make
-# that transformation. There is generally one "singular rule" for each of the
+# that transformation. There is generally one "wildcard rule" for each of the
 # main processing steps
 
 #Primary variables
@@ -180,19 +183,6 @@ else:  #No dependency on the shapefile
                                     shapefile="",
                                     useAreaWeighting=config['arealstats']['useAreaWeighting'],
                                     idColumn=config['arealstats']['idColumn'])
-
-# Database 
-rule _09_database:
-    input:
-        ensstats=wf['database']['ensstats'],
-        members=wf['database']['members'],
-    output:
-        os.path.join(outDirs['outputs'],'KAPy_outputs.sqlite')
-    run:
-        KAPy.writeToDatabase(outFile=output,
-                             ensstats=input.ensstats, 
-                             members=input.members)
-
 #Plots        
 rule _09_lineplots:
     output:
@@ -225,7 +215,8 @@ rule _09_spatial_plots:
                              srcFiles=input)
         
 
-# Other rules and targets -------------------------------
+# Individual targets -------------------------------
+# These are individual files that are produced, rather than a collection of files
 
 #Make the variable overview
 rule overview:
@@ -233,10 +224,22 @@ rule overview:
         KAPy.VariableOverview(config)
 
 
+# Database 
+rule database:
+    input:
+        ensstats=wf['database']['ensstats'],
+        members=wf['database']['members'],
+    output:
+        os.path.join(outDirs['outputs'],'KAPy_outputs.sqlite')
+    run:
+        KAPy.writeToDatabase(outFile=output,
+                             ensstats=input.ensstats, 
+                             members=input.members)
+
 # Helper Targets ---------------------------------------------------------
 # Here we define a series of short-hand targets that can be used to run 
-# subsets of the full graph. This is not strictly necessary, but is a nice help
-# for the user.
+# subsets of the full graph i.e. to make sets of files. This is not strictly
+# necessary, but is a nice help for the user.
 
 #Primary variables
 rule primaryVars:
@@ -274,11 +277,6 @@ rule ensstats:
     input:
         list(wf['ensstats'].keys())
 
-#Database
-rule database:
-    input:
-        os.path.join(outDirs['outputs'],'KAPy_outputs.sqlite')
-
 #Plots
 rule plots:
     input:
@@ -288,5 +286,5 @@ rule plots:
 rule all:
     input:
         wf['all'],
-        rules._09_database.output
+        rules.database.output
     default_target: True
