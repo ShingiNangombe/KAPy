@@ -274,6 +274,11 @@ rule ensstats:
     input:
         list(wf['ensstats'].keys())
 
+#Database
+rule database:
+    input:
+        os.path.join(outDirs['outputs'],'KAPy_outputs.sqlite')
+
 #Plots
 rule plots:
     input:
