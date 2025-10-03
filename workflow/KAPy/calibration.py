@@ -2,14 +2,16 @@
 #Setup for debugging with VS code
 import os
 print(os.getcwd())
-import helpers as helpers
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
+import KAPy.helpers as helpers
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
-histsimFile='./outputs/1.variables/tas/tas_CORDEX_EUR-11_rcp85_NCC-NorESM1-M_r1i1p1_SMHI-RCA4_v1.nc'
-refFile="./outputs/1.variables/tas/tas_KGDK_KGDK_no-expt_tasobs_1989-2019_new.nc"
-thisCal='tas-xclim-scaling'
+wf=KAPy.getWorkflow(config)
+thisCal='tas-ba'
+outFile=list(wf['calibratedVars'][thisCal])[0]
+histsimFile=wf['calibratedVars'][thisCal][outFile]['histsim']
+refFile=wf['calibratedVars'][thisCal][outFile]['ref']
 import matplotlib.pyplot as plt
 %matplotlib inline
 """
@@ -21,7 +23,8 @@ import json
 from . import helpers
 #from dask.distributed import Client
 
-def calibrate(config,histsimFile,refFile,outFile, thisCal):
+def calibrate(outFile,histsimFile,refFile,tempDir,calPeriodStart,calPeriodEnd,calibrationVariable,method,grouping,
+              additionalArgs,customScriptPath,customScriptFunction,**kwargs):
     # We choose to follow here the Xclim typology of ref / hist / sim, with the
     # assumption that the hist and sim part are contained in the same file ("histsim)")
     # The general strategy employed is as follows:
@@ -31,7 +34,6 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     # * Apply the bias-correction function to chunks of the combined dataset using dask
 
     #Setup ------------------------
-    calCfg=config['calibration'][thisCal]
     histsim=helpers.readFile(histsimFile)
     refds=helpers.readFile(refFile,chunks={'time':-1})
  #   client=Client()
@@ -43,13 +45,14 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     # respect the chunking of the histsim file. xESMF is currently our tool of choice
     # due to its ability to work ok with dask.
     # Start by getting the regridding weights
-    regrdWtsFname=tempfile.NamedTemporaryFile(dir=config['dirs']['tempDir'],
+    regrdWtsFname=tempfile.NamedTemporaryFile(dir=tempDir,
                                                 delete=False,
                                                 prefix="regrdWts_",
                                                 suffix=".nc").name
     regrdr=xe.Regridder(histsim,refds,
                        method="nearest_s2d",
-                       filename=regrdWtsFname)
+                       filename=regrdWtsFname,
+                       unmapped_to_nan=True)
     # Then apply the regridding. 
     # The regridder seems to work best when it can work with all of the spatial elements 
     # together, implying full spatial chunking. But this creates problems with the later
@@ -58,13 +61,14 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     # chunking pattern that is amenable to further work downstrem. 
     rechunkSpace={d: -1 for d in histsim.dims if d!='time'}
     histsimRechunked=histsim.chunk(rechunkSpace)
-    regrdFname=tempfile.NamedTemporaryFile(dir=config['dirs']['tempDir'],
+    regrdFname=tempfile.NamedTemporaryFile(dir=tempDir,
                                                 delete=False,
                                                 prefix="histsimNN_",
                                                 suffix=".nc").name
     histsimNN=regrdr(histsimRechunked,output_chunks=(-1,-1),keep_attrs=True)
+    chunkThisWay=[min([256,16,16][i],histsimNN.shape[i]) for i in range(0,3)]
     histsimNN.to_netcdf(regrdFname,
-              encoding={histsimNN.name:{'chunksizes':(256,16,16)}})
+              encoding={histsimNN.name:{'chunksizes':chunkThisWay}})
 
     #Now reopen histsimNN with a time-oriented chunking
     histsimNN=helpers.readFile(regrdFname,chunks={'time':-1}).unify_chunks()
@@ -73,24 +77,17 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     # From a bias-correction perspective, the only part of the reference dataset that
     # is interesting is the common period data - there could be a whole lot more
     # that we otherwise don't use. We therefore drop the uninteresting parts
-    refdsCP=helpers.timeslice(refds,
-                     calCfg['calPeriodStart'],
-                     calCfg['calPeriodEnd'])
-    #Align the calendar representation and rename variables                     
-    refdsCPtime=(refdsCP
-                 .convert_calendar(histsimNN.time.dt.calendar,
-                                   use_cftime=True,
-                                   align_on="year")
-                .rename({"time": "reftime"}))
-    
+    refdsCP=helpers.timeslice(refds,calPeriodStart,calPeriodEnd)
     # Merge into one dataset object, with common spatial dimensions but
     # differentiated time dimensions. Note the need to unify the chunking
+    refdsCPtime=refdsCP.rename({"time": "reftime"})
     combDS2=xr.Dataset({'histsim':histsimNN.unify_chunks(),
                         'ref':refdsCPtime.unify_chunks()})
     combDS=combDS2.unify_chunks()
 
     #Parallelised calibration functions ------------------------------
-    def calibrateThisChunk(chnk,calCfg):
+    def calibrateThisChunk(chnk,calPeriodStart,calPeriodEnd,
+                           method,additionalArgs,grouping):
         #Debug
         # hs=combDS.histsim.data.blocks[0,0,0].compute()
         # rf=combDS.ref.data.blocks[0,0,0].compute()
@@ -100,9 +97,7 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
 
         #Truncate time slice to the common calibration period (CP). 
         #Adjust the naming of the reference time
-        hsCP=helpers.timeslice(hs,
-                        calCfg['calPeriodStart'],
-                        calCfg['calPeriodEnd'])
+        hsCP=helpers.timeslice(hs,calPeriodStart,calPeriodEnd)
         rfCP=rfCP.rename({"reftime": "time"})
 
         #Match calendars between reference data and simulations
@@ -115,19 +110,22 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
                                     use_cftime=True,
                                     align_on="year")  
         
+        #We interpolate time to be on a common time axis
+        hsCP=hsCP.interp(time=rfCP.time,method="nearest")
+        
         #Setup mapping to methods and grouping
         cmethodsAdj={"cmethods-linear":'linear_scaling',
                 "cmethods-variance":'variance_scaling',
                 "cmethods-delta":"delta_method",
                 "cmethods-quantile":'quantile_mapping',
                 "cmethods-quantile-delta":'quantile_delta_mapping'}
-        if calCfg['grouping']=="none":
-            grouping="time"
+        if grouping=="none":
+            groupThisWay="time"
         else:
-            grouping="time."+calCfg['grouping']
+            groupThisWay="time."+grouping
         
         #Apply method
-        if calCfg['method'] in cmethodsAdj.keys():
+        if method in cmethodsAdj.keys():
             raise ValueError('"cmethods" methods are currently disabled')
             from cmethods import adjust        #Use the adjust function from python cmethods
             res=adjust(method=cmethodsAdj[calCfg['method']],
@@ -138,44 +136,44 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
                         group="time."+calCfg['grouping'],
                         **calCfg['additionalArgs'])
 
-        elif calCfg['method']=="cmethods-detrended":
+        elif method=="cmethods-detrended":
             # Distribution methods from cmethods
             from cmethods.distribution import detrended_quantile_mapping
             raise ValueError('"cmethods-detrended" method is currently not implemented')
 
-        elif calCfg['method']=="xclim-eqm":
+        elif method=="xclim-eqm":
             #Empirical quantile mapping -----------------------------
             from xclim.sdba import EmpiricalQuantileMapping
             EQM = EmpiricalQuantileMapping.train(rfCP, 
                                                     hsCP, 
-                                                    group=grouping,
-                                                    **calCfg['additionalArgs'])
+                                                    group=groupThisWay,
+                                                    **additionalArgs)
             res = EQM.adjust(hs, extrapolation="constant", interp="nearest")
 
-        elif calCfg['method']=="xclim-dqm":
+        elif method=="xclim-dqm":
             #Detrended quantile mapping -----------------------------
             from xclim.sdba import DetrendedQuantileMapping
             DQM = DetrendedQuantileMapping.train(rfCP, 
                                                     hsCP, 
-                                                    group=grouping,
-                                                    **calCfg['additionalArgs'])
+                                                    group=groupThisWay,
+                                                    **additionalArgs)
             res = DQM.adjust(hs, extrapolation="constant", interp="nearest")
 
-        elif calCfg['method']=="xclim-scaling":
+        elif method=="xclim-scaling":
             #Xclim - Scaling--------------------------------
             from xclim.sdba.adjustment import Scaling
             this = Scaling.train(rfCP, 
                                     hsCP,
-                                    group=grouping,
-                                    **calCfg['additionalArgs'])
+                                    group=groupThisWay,
+                                    **additionalArgs)
             res = this.adjust(hs, interp="nearest")
 
-        elif calCfg['method']=="custom":
+        elif method=="custom":
             raise ValueError('"custom" calibration is currently not implemented')
         
         else:
             #Custom defined function
-            raise ValueError(f'Unsupported calibration method "{calCfg['method']}".')
+            raise ValueError(f'Unsupported calibration method "{method}".')
         
         #Correct output structure and Finish
         resTrans = res.transpose(*rfCP.dims)
@@ -183,17 +181,22 @@ def calibrate(config,histsimFile,refFile,outFile, thisCal):
     
     # Do calibration----------------------
     # Apply function in a parallelised manner. 
+    calCfg={"calPeriodStart":calPeriodStart,
+                                "calPeriodEnd":calPeriodEnd,
+                                "grouping":grouping,
+                                "method":method,
+                                "additionalArgs":additionalArgs}
     out=xr.map_blocks(func=calibrateThisChunk,
                         obj=combDS,
-                        kwargs={'calCfg':calCfg},
+                        kwargs=calCfg,
                         template=histsimNN)
 
     #Finishing touches
-    out2=out.rename(calCfg['outVariable'])   #Return object, rather than inline modification
-    out2 = out2.assign_attrs({"calibration_args": json.dumps(calCfg)})
+    out2 = out.assign_attrs({"calibration_args": json.dumps(calCfg)})
 
     #Now write, setting the chunk sizes and compression
+    chunkThisWay=[min([256,16,16][i],out2.shape[i]) for i in range(0,3)]
     out2.to_netcdf(outFile[0],
-                encoding={calCfg['outVariable']:{'chunksizes':[256,16,16],
+                encoding={calibrationVariable:{'chunksizes':chunkThisWay,
                             'zlib': True,
                             'complevel':1}})

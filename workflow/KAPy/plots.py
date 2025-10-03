@@ -3,11 +3,12 @@
 #Debugging setup for VS Code
 import os
 print(os.getcwd())
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")  
 wf=KAPy.getWorkflow(config)
+%matplotlib inline
 """
 
 from plotnine import *
@@ -25,14 +26,11 @@ matplotlib.use('Agg')
 
 # Boxplot---------------------------------------------------------------------------
 """
-indID='101'
-outFile='outputs/7.plots/101_boxplot.png'
+outFile='outputs/09.outputs/plots/101_boxplot.png'
 srcFiles=wf['plots'][outFile]
 """
 
-def makeBoxplot(config, indID, srcFiles, outFile=None):
-    # Extract indicator info
-    thisInd = config["indicators"][indID]
+def makeBoxplot(outFile, srcFiles):
 
     # Load csv files as panadas dataframes
     # Note that we need to make sure that we read the ID's as strings
@@ -45,32 +43,30 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
         datIn["experiment"] = datIn["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$")
         dat += [datIn]
     datdf = pd.concat(dat)
-    datdf['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
+    datdf['lbl']=[ f"{rw['source']}-{rw['experiment']}" if rw['experiment']!='noExpt' else rw['source']
                   for idx,rw in datdf.iterrows()]
 
+    datdf['percentiles']=[x*100 if x < 1 else x for x in datdf['percentiles']]
+    
+    #Select a single areaID (the first
+    thisAreaID=datdf['areaID'].unique()[0]
+    datdf=datdf[datdf['areaID']==thisAreaID]
 
-    # Get metadata from configuration
-    ptileTbl = (
-        pd.DataFrame.from_dict(
-            config["ensembles"], orient="index", columns=["percentiles"]
-        )
-        .reset_index()
-        .rename(columns={"index": "ptileLbl"})
-    )
-    periodTbl = pd.DataFrame.from_dict(config["periods"], orient="index")
-    periodLblDict = {
-        x["id"]: f"{x['name']}\n({x['start']}-{x['end']})"
-        for i, x in periodTbl.iterrows()
-    }
+    #Infer percentiles from data
+    ptileTbl=pd.DataFrame({"ptileLbl": ["lowerPercentile","centralPercentile","upperPercentile"],
+                           "percentiles": [datdf['percentiles'].min(),
+                                      datdf['percentiles'].median(),
+                                      datdf['percentiles'].max()]})
 
     # Now merge into dataframe and pivot for plotting
     pltLong = pd.merge(datdf, ptileTbl, on="percentiles", how="left")
     pltDatWide = pltLong.pivot_table(
-        index=["lbl", "periodID","seasonID","statistic"], columns="ptileLbl", values="indicator_percentiles"
+        index=["lbl", "periodID","seasonID","arealStatistic"],
+        columns="ptileLbl", values="indicator_percentiles"
     ).reset_index()
 
     # Filter remaining data
-    pltDat=pltDatWide[pltDatWide['statistic']=='mean']
+    pltDat=pltDatWide[pltDatWide['arealStatistic']=='mean']
 
     # Now plot
     p = (
@@ -91,11 +87,10 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
         )
         + labs(
             x="Period",
-            y=f"Value ({thisInd['units']})",
-            title=f"{thisInd['name']} ",
+            y=f"Value",
+            title=f"AreaID {thisAreaID}",
             fill="",
         )
-        + scale_x_discrete(labels=periodLblDict,    )
         + theme_bw()
         + theme(legend_position="bottom",
                  panel_grid_major_x=element_blank(),
@@ -111,13 +106,10 @@ def makeBoxplot(config, indID, srcFiles, outFile=None):
 
 # Spatialplot -----------------------------------------------------------
 """
-indID='101'
-outFile='outputs/7.plots/101_spatial.png'
+outFile='outputs/09.outputs/plots/101_spatial.png'
 srcFiles=wf['plots'][outFile]
 """
-def makeSpatialplot(config, indID, srcFiles, outFile=None):
-    # Extract indicator info
-    thisInd = config["indicators"][indID]
+def makeSpatialplot(outFile, srcFiles):
 
     # Read netcdf files using xarray and calculate difference
     datdf = []
@@ -133,20 +125,15 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
         firstlastdf["experiment"] = firstlastdf["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$")
         datdf += [firstlastdf]
     pltDat = pd.concat(datdf)
-    pltDat['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
+    pltDat['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='noExpt' else rw['source']
                   for idx,rw in pltDat.iterrows()]
-
-    #Setup period labelling
-    periodTbl = pd.DataFrame.from_dict(config["periods"], orient="index")
-    periodLblDict = {
-        x["id"]: f"{x['name']}\n({x['start']}-{x['end']})"
-        for i, x in periodTbl.iterrows()
-    }
-    pltDat['periodLbl']= [ periodLblDict[p] for p in pltDat['periodID']]
+    
+    #Label periods
+    pltDat['periodLbl']=[f"Period {id}" for id in pltDat['periodID']]
 
     #Identify spatial coordinates
-    spDimX=[d for d in pltDat.columns if d in ['x','longitude','long','lon','eastings']]
-    spDimY=[d for d in pltDat.columns if d in ['y','latitude','lat','northings']]
+    spDimX=[d for d in thisdat.indexes.keys() if d in ['x','longitude','long','lon','eastings']]
+    spDimY=[d for d in thisdat.indexes.keys()if d in ['y','latitude','lat','northings']]
     if len(spDimX)==0:
         raise ValueError("Cannot identify x-spatial coordinate.")
     if len(spDimY)==0:
@@ -162,9 +149,7 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
         + theme_bw()
         + labs(
             x="",
-            y="",
-            fill=f"Value\n({thisInd['units']})",
-            title=f"{thisInd['name']} "
+            y=""
         )
         + scale_x_continuous(expand=[0, 0])
         + scale_y_continuous(expand=[0, 0])
@@ -185,15 +170,12 @@ def makeSpatialplot(config, indID, srcFiles, outFile=None):
 
 # Lineplot------------------------------------------------------------------
 """
-indID='101y'
-outFile=f'outputs/7.plots/{indID}_lineplot.png'
+outFile="outputs/09.outputs/plots/101y_lineplot.png"
 srcFiles=wf['plots'][outFile]
 """
 
 
-def makeLineplot(config, indID, srcFiles, outFile=None):
-    # Extract indicator info
-    thisInd = config["indicators"][indID]
+def makeLineplot(outFile,  srcFiles):
 
     # Load csv files as panadas dataframes
     dat = []
@@ -208,23 +190,26 @@ def makeLineplot(config, indID, srcFiles, outFile=None):
     datdf["datetime"] = [datetime.strptime(d,"%Y-%m-%d") for d in datdf["time"]]
     datdf['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
                   for idx,rw in datdf.iterrows()]
+    #Select a single areaID (the first
+    thisAreaID=datdf['areaID'].unique()[0]
+    datdf=datdf[datdf['areaID']==thisAreaID]
 
     # Now select data for plotting
     # We only plot the central value, not the full range
     # Drop the standard deviation - we only want the mean
-    pltDat = datdf[datdf["percentiles"] == config["ensembles"]["centralPercentile"]]
-    pltDat = pltDat[pltDat["statistic"] == "mean"]
+    pltDat = datdf[datdf["percentiles"] == datdf["percentiles"].median()]
+    pltDat = pltDat[pltDat["arealStatistic"] == "mean"]
 
     # Now plot
     p = (
-        ggplot(pltDat, aes(x="datetime", y="indicator", colour="lbl"))
+        ggplot(pltDat, aes(x="datetime", y="indicator_mean", colour="lbl"))
         + facet_wrap("~seasonID",as_table=False,dir="v")
         + geom_point()
         + labs(
             x="",
-            y=f"Value ({thisInd['units']})",
-            title=f"{thisInd['name']} ",
+            y=f"Value",
             colour="",
+            title=f"AreaID = {thisAreaID}"
         )
         + theme_bw()
         + scale_x_datetime(date_labels="%Y")

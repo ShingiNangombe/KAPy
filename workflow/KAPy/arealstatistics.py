@@ -16,18 +16,16 @@ inFile=wf['arealstats'][asID]
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
-import numpy as np
-import os
 from cdo import Cdo
-from . import helpers
 
-def generateArealstats(config, inFile, outFile):
+def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idColumn):
     # Generate statistics over an area by applying a polygon mask and averaging
     # Setup xarray
     # Note that we need to use open_dataset here, as the ensemble files have
     # multiple data variables in them
+    time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
     thisDat = xr.open_dataset(inFile[0],
-                              use_cftime=True)
+                              decode_times=time_coder)
 
     #Identify the time / period coordinate first
     if 'time' in thisDat.dims:
@@ -44,8 +42,8 @@ def generateArealstats(config, inFile, outFile):
     spGrid=thisDat.isel({k : 0 for k in nonspDims},drop=True)[list(thisDat.data_vars)[0]]
 
     # If using area weighting, get the pixel size
-    if config['arealstats']['useAreaWeighting']:
-        cdo=Cdo(tempdir=config['dirs']['tempDir'])
+    if useAreaWeighting:
+        cdo=Cdo(tempdir=tempDir)
         pxlSize=cdo.gridarea(input=spGrid,returnXArray='cell_area')
     else:
         pxlSize=spGrid
@@ -53,9 +51,9 @@ def generateArealstats(config, inFile, outFile):
         pxlSize.name="cell_area"
 
     # If we have a shapefile defined, then work with it
-    if config['arealstats']['shapefile']!='':
+    if shapefile!='':
         #Import shapefile and drop CRS
-        shapefile = gpd.read_file(config['arealstats']['shapefile'])
+        shapefile = gpd.read_file(shapefile)
         shapefile.crs=None
 
         #Use geopandas as the base for this computation. We use the 
@@ -74,13 +72,13 @@ def generateArealstats(config, inFile, outFile):
             
             #Apply masking and weighting and calculate
             wtMeanDf = thisDat.weighted(pxlWts).mean(dim=spDims).to_dataframe().reset_index()
-            wtMeanDf['statistic']='mean'
+            wtMeanDf['arealStatistic']='mean'
             wtSdDf = thisDat.weighted(pxlWts).std(dim=spDims).to_dataframe().reset_index()
-            wtSdDf['statistic']='sd'
+            wtSdDf['arealStatistic']='sd'
 
             #Output object
             thisOut=pd.concat([wtMeanDf,wtSdDf])
-            thisOut['areaID'] =thisArea[config['arealstats']['idColumn']] 
+            thisOut.insert(0,'areaID',thisArea[idColumn] )
             outList += [thisOut]
         dfOut=pd.concat(outList)
 
@@ -89,14 +87,14 @@ def generateArealstats(config, inFile, outFile):
         # Average spatially over the time dimension
         spMean = thisDat.weighted(pxlSize).mean(dim=spDims)
         spMeanDf=spMean.to_dataframe()
-        spMeanDf['statistic']='mean'
+        spMeanDf['arealStatistic']='mean'
         spSd = thisDat.weighted(pxlSize).std(dim=spDims)
         spSdDf=spSd.to_dataframe()
-        spSdDf['statistic']='sd'
+        spSdDf['arealStatistic']='sd'
 
         # Save files pandas
         dfOut = pd.concat([spMeanDf,spSdDf])
-        dfOut["areaID"] = "all"  
+        dfOut.insert(0,'areaID',"all" )
 
     #Write out date without time for easier handling
     dfOut=dfOut.reset_index()
@@ -107,29 +105,4 @@ def generateArealstats(config, inFile, outFile):
     dfOut.to_csv(outFile[0],index=False)
 
 
-
-"""
-inFiles=wf['arealstats'].keys()
-outFile=["results/5.areal_statistics/Areal_statistics.csv"]
-"""
-
-def combineArealstats(config, inFiles, outFile):
-    #Load individual files
-    dat = []
-    for f in inFiles:
-        datIn=pd.read_csv(f)
-        datIn.insert(0,'sourcePath',f)
-        datIn.insert(0,'filename',os.path.basename(f))
-        dat += [datIn]
-    datdf = pd.concat(dat)
-    
-    #Split out the defined elements
-    datdf.insert(2,'memberID',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.*).csv$"))
-    datdf.insert(2,'expt',datdf['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'gridID',datdf['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'srcID',datdf['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
-    datdf.insert(2,'indID',datdf['filename'].str.extract("^([^_]+)_.*$"))
-
-    #Drop the filename and write out
-    datdf.drop(columns=['filename','sourcePath']).to_csv(outFile[0],index=False)
 

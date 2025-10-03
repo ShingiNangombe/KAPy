@@ -20,16 +20,17 @@ import scipy as sp
 import xesmf as xe
 from . import helpers
 
-def regrid(config, inFile, outFile):
+def regrid(outFile, inFile, templateType,path,method,tempDir):
     # Check regridding approach is valid
-    if not config["outputGrid"]["templateType"] in ["file","cdo"]:
+    if not templateType in ["file","cdo"]:
         raise ValueError("Regridding options are currently limited to `file` or `cdo`. See documentation")
 
     # Setup input files
     # ------------------
     # Note that as this is an indicator file, we open it as a dataset
+    time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
     thisDat = xr.open_dataset(inFile[0],
-                              use_cftime=True)
+                              decode_times=time_coder)
     # Identify time coordinate
     if 'time' in thisDat.dims:
         tCoord='time'
@@ -64,23 +65,22 @@ def regrid(config, inFile, outFile):
                     thisDat[var].values[tID,sID]=grd
 
     #Setup the reference grid, either by importing the file, or generating it with CDO
-    if config["outputGrid"]["templateType"] == "file":
+    if templateType == "file":
         #Import reference file directly
-        refGrd=xr.open_dataarray(config["outputGrid"]["path"])
+        refGrd=xr.open_dataarray(path)
     else:
         #Use the CDO griddes to make one
-        cdo=Cdo(tempdir=config['dirs']['tempDir'])
-        refGrd=cdo.const(42,config["outputGrid"]["path"],
+        cdo=Cdo(tempdir=tempDir)
+        refGrd=cdo.const(42,path,
                             returnXArray='const')
 
     # Apply regriddinng
     # ------------------
-    #Ideally unmapped_to_nan should be True, but these causes segmentation faults
-    #in xESMF v0.8.8. May be fixed in future versions. Generally this is not a problem
-    #however, as we mask the output later in the process, removing any unmapped areas
+    #Note that the unmapped_to_nan can be a bit problematic, and caused segmentation faults
+    #in xESMF v0.8.8. This should be fixed in v0.8.10.
     regrdr=xe.Regridder(thisDat,refGrd,
-                        method=config["outputGrid"]["method"],
-                        unmapped_to_nan=False)  
+                        method=method,
+                        unmapped_to_nan=True)  
     
     #Do regridding
     regrdded=regrdr(thisDat,keep_attrs=True)

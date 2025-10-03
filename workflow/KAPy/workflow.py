@@ -1,10 +1,8 @@
-# Given a set of input files, create datachunk objects that can be worked with
-
 """
 #Setup for debugging with VS Code 
 import os
 print(os.getcwd())
-os.chdir("..")
+os.chdir("KAPy/workflow")
 import KAPy
 os.chdir("../..")
 config=KAPy.getConfig("./config/config.yaml")
@@ -20,7 +18,7 @@ def getWorkflow(config):
     """
     Get Workflow setup
 
-    Generates a series of dicts describing the workflow dependencies of this configuration
+    Generates a description of the workflow dependencies of this configuration
     """
     # Extract specific configurations
     inp = config["inputs"]
@@ -35,29 +33,39 @@ def getWorkflow(config):
     pvDict = {}
     for thisKey, thisInp in inp.items():
         # Get file list
-        inpTbl = pd.DataFrame(glob.glob(thisInp["path"]), columns=["inPath"])
+        inpTbl = pd.DataFrame(sorted(glob.glob(thisInp["path"])), columns=["inPath"])
         inpTbl['inFname']=[os.path.basename(p) for p in inpTbl['inPath']]
-
         #First, handle case where we don't find any files. We could ignore it,
         # but it's best to throw an error
         if len(inpTbl)==0:
-            sys.exit(f'No files found for input path "{thisInp["path"]}"')
+            raise FileNotFoundError(f'No files found for input path "{thisInp["path"]}"')
         
-        # If we only get one file, then there's not really much to do - we're
-        # going to use that file more or less directly. Handle that case first.
+        # If we only get one file, then there's not really much to do - that file
+        # is the only member of the ensemble and we use it more or less directly
+        # Handle that case first.
         elif len(inpTbl)==1:
             #Set output filename, setting the file extension manually.
             pvTbl=inpTbl
             pvTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_no-expt_" + \
-                    os.path.splitext(pvTbl['inFname'][0])[0] + '.nc'
+                    f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
 
+        # A similar case also exists where there is a single ensemble member, but it
+        # is spread across multiple files. This is indicated when the ensMemberFields and 
+        # experimentField is empty. We handle all variates of that here
+        elif thisInp['ensMemberFields']==[''] and thisInp['experimentField']=='' and len(inpTbl)>1:
+            pvTbl=inpTbl
+            pvTbl['pvFname']= \
+                    f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_noExpt_noEnsID.nc"
+        # elif thisInp['ensMemberFields']==['']:
+        #     raise ValueError("Unhandled case. Please file a bug")
+        # elif thisInp['experimentField']==['']:
+        #     raise ValueError("Unhandled case. Please file a bug")
         # Else multiple hits detected that need to be handled.
         else:
             # Handling multiple files requires some information from the filenames, 
             # and therefore the fieldSeparator needs to be defined. If not, throw an error
             if thisInp['fieldSeparator']=='':
-                sys.exit(f'fieldSeparator is not defined for "{thisInp['varID']}-{thisInp['srcID']}" ' + \
+                raise ValueError(f'fieldSeparator is not defined for "{thisInp['varID']}-{thisInp['datasetID']}" ' + \
                          f'but {len(inpTbl)} files were detected.')
 
             # Split filenames into columns and extract predefined elements
@@ -72,7 +80,7 @@ def getWorkflow(config):
                 #experiment individually
                 #Form the corresponding filename. Don't forget to add the .nc
                 inpTbl['pvFname']= \
-                    f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_" + \
+                    f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}_" + \
                     inpTbl['experiment'] + "_" + \
                     inpTbl['ensMemberID'] +".nc"
 
@@ -94,27 +102,29 @@ def getWorkflow(config):
                     # Get files that are either in the experiment of interest first
                     theseExptFiles=inpTbl[inpTbl['experiment'].isin([thisExpt])].copy()
 
-                    #Forming the corresponding filename. Don't forget to add the .nc
+                    #Forming the corresponding filenames. Don't forget to add the .nc
+                    #Experiment naming is the sum of the commonExpt and thisExpt
                     theseExptFiles['pvFname']= \
-                        f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_" + \
-                        thisExpt + "_" + \
+                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}" + \
+                        f"_{thisInp["commonExperimentID"]}+{thisExpt}_" + \
                         theseExptFiles['ensMemberID'] +".nc"
-                    
-                    #Now do the same for the commonExpt - using the experiment
-                    #naming from thisExpt (and not the native commonExperimentID)
                     commonExptTable['pvFname']= \
-                        f"{thisInp['varID']}_{thisInp['srcID']}_{thisInp['gridID']}_" + \
-                        thisExpt + "_" + \
+                        f"{thisInp['varID']}_{thisInp['datasetID']}_{thisInp['gridID']}" + \
+                        f"_{thisInp["commonExperimentID"]}+{thisExpt}_" + \
                         commonExptTable['ensMemberID'] +".nc"
                     
                     #Now select the files from the commonExpt that are also in the
                     #otherExperiment table. This makes sure that we only add
                     #commonExpt ensemble members that have corresponding files
-                    #in the given experiment (thisExpt). Then concat.
+                    #in the given experiment (thisExpt). Then concat. Throw an
+                    #error if none found
                     theseCommonExptFiles=commonExptTable[
                         commonExptTable['pvFname'].isin(theseExptFiles['pvFname'])
                     ]
-                    combinedFileTbl=pd.concat([theseExptFiles,theseCommonExptFiles])
+                    if theseCommonExptFiles.shape[0]==0:
+                        raise ValueError(f"Cannot find commonExperiment files to match '{theseExptFiles['inPath'].iloc[0]}'.")
+
+                    combinedFileTbl=pd.concat([theseCommonExptFiles,theseExptFiles,])
 
                     # Store results
                     pvList += [combinedFileTbl[['pvFname','inPath']]]
@@ -124,7 +134,7 @@ def getWorkflow(config):
 
         # Build the full filename and tidy up the output into a dict
         pvTbl["pvPath"] = [
-            os.path.join(outDirs["variables"], thisInp["varID"], f)
+            os.path.join(outDirs["primaryVariables"], thisKey, f)
             for f in pvTbl["pvFname"]
         ]
 
@@ -134,7 +144,7 @@ def getWorkflow(config):
         
         #Prior to adding to the pvDict, check that we have unique keys
         if any(pvTbl['pvPath'].isin(pvDict.keys())):
-            sys.exit("Duplicate keys found in generating primary variables.")
+            raise ValueError("Duplicate keys found in generating primary variables.")
 
         #Finally, make the dict
         pvDict[thisKey] =(
@@ -150,9 +160,9 @@ def getWorkflow(config):
         thisTbl = pd.DataFrame(flist,columns=["path"])
         thisTbl["fname"] = [os.path.basename(p) for p in thisTbl["path"]]
         thisTbl["varID"] = thisTbl["fname"].str.extract("^([^_]+)_.*$")
-        thisTbl["srcID"] = thisTbl["fname"].str.extract("^[^_]+_([^_]+)_.*$")
+        thisTbl["datasetID"] = thisTbl["fname"].str.extract("^[^_]+_([^_]+)_.*$")
         thisTbl["gridID"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_([^_]+)_.*$")
-        thisTbl["expt"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$")
+        thisTbl["expt"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_([^_.]+).*$")
         thisTbl["stems"] = thisTbl["fname"].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.+).nc(?:.pkl)?$")
         return thisTbl
 
@@ -161,29 +171,25 @@ def getWorkflow(config):
     # Iterate over secondary variables if they are request
     svDict = {}
     if "secondaryVars" in config:
-        for thisSV in config["secondaryVars"].values():
+        for thisKey,thisSV in config["secondaryVars"].items():
             # Now filter by the input variables needed for this derived variable
             selThese = [v in thisSV["inputVars"] for v in varPal["varID"]]
             longSVTbl = varPal[selThese]
-            try:
-                if longSVTbl.size == 0:
-                    raise ValueError(
-                        f"Cannot find any matching input files for {thisSV['name']}. "
-                        + "Check the definition again. Also check the order of definition."
-                    )
-            except ValueError as e:
-                print("Error:", e)
+            if longSVTbl.size == 0:
+                    raise ValueError(f"Cannot find any input variables for {thisSV['id']}. ")
 
             # Pivot and retain only those in common
             svTbl = longSVTbl.pivot(
-                index=["srcID","gridID","expt", "stems"], columns="varID", values="path"
+                index=["datasetID","gridID","expt", "stems"], columns="varID", values="path"
             )
             svTbl = svTbl.dropna().reset_index()
+            if svTbl.size == 0:
+                raise ValueError(f"Cannot find any matching input variables for {thisSV['id']}. ")
 
             # Now we have a list of valid files that can be made. Store the results
             svTbl['outFile'] = [
-                os.path.join(outDirs["variables"], thisSV["outputVars"][0], fName)
-                for fName in f"{thisSV["outputVars"][0]}_" + svTbl["srcID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
+                os.path.join(outDirs["secondaryVariables"], thisKey, fName)
+                for fName in f"{thisSV["outputVars"][0]}_" + svTbl["datasetID"] + "_" + svTbl['gridID']+"_"+svTbl["expt"]+"_"+svTbl["stems"]+".nc"
             ]
 
             # Add to output dict
@@ -204,10 +210,10 @@ def getWorkflow(config):
     calDict = {}
     # Iterate over secondary variables if they are request
     if "calibration" in config:
-        for thisCal in config["calibration"].values():
+        for thisKey,thisCal in config["calibration"].items():
             # Now filter by the input variables needed for this calibration 
             selThese = (varPal["varID"] ==thisCal['calibrationVariable']) & \
-                        (varPal["srcID"]==thisCal['calibSource'])
+                        (varPal["datasetID"]==thisCal['targetDatasetID'])
             calTbl = varPal[selThese].copy()
             try:
                 if calTbl.size == 0:
@@ -221,16 +227,16 @@ def getWorkflow(config):
             # The workflow also requires that the reference dataset is present, so this becomes
             # a prerequisite for making the output
             selThese = (varPal["varID"] ==thisCal['calibrationVariable']) & \
-                        (varPal["srcID"]==thisCal['refSource'])
+                        (varPal["datasetID"]==thisCal['refDatasetID'])
             if sum(selThese)!=1:
                 raise ValueError("Cannot find a unique data variable to use as the reference "
-                                 + f'for calibration of "{thisCal['calibrationVariable']}_{thisCal['calibSource']}"')
+                                 + f'for calibration of "{thisCal['calibrationVariable']}_{thisCal['targetDatasetID']}"')
             refDict = varPal[selThese].to_dict(orient="records")[0]
 
             # Now we have a list of valid files that can be made. Store the results
             calTbl['outFile'] = [
-                os.path.join(outDirs["calibration"], thisCal["outVariable"], fName)
-                for fName in f"{thisCal["outVariable"]}_" + calTbl["srcID"] + "_" + refDict['gridID']+"_"+calTbl["expt"]+"_"+calTbl["stems"]+".nc"
+                os.path.join(outDirs["calibration"], thisKey, fName)
+                for fName in f"{thisCal["calibrationVariable"]}_" + thisCal["outDatasetID"] + "_" + refDict['gridID']+"_"+calTbl["expt"]+"_"+calTbl["stems"]+".nc"
             ]
 
             # Add to output dict
@@ -242,6 +248,51 @@ def getWorkflow(config):
             # Add to variable palette
             varPal = pd.concat([varPal,
                                parseFilelist(calTbl['outFile'].to_list())])
+
+
+    # Tertiary Variables---------------------------------------------
+    # Iterate over tertiary variables if they are requested. The approach
+    # here is very similar to secondary variables, but we only draw on
+    # the variables in the post-calibration palette (postcalPal) instead of the full variable
+    # palette. Ideally this should be merged into a function.
+    # Note that tertiary variables can only be created if there are calibration variables 
+    # created first
+    tvDict = {}
+    if ("tertiaryVars" in config) and ("calibration" in config):
+        postcalPal = parseFilelist([k for v in calDict.values() for k in v.keys()])
+        for thisKey,thisTV in config["tertiaryVars"].items():
+            # Filter by the input variables needed for this derived variable
+            selThese = [v in thisTV["inputVars"] for v in postcalPal["varID"]]
+            longTVTbl = postcalPal[selThese]
+            if longTVTbl.size == 0:
+                    raise ValueError(f"Cannot find any input variables for tertiary variable '{thisTV['id']}'. ")
+
+            # Pivot and retain only those in common
+            tvTbl = longTVTbl.pivot(
+                index=["datasetID","gridID","expt", "stems"], columns="varID", values="path"
+            )
+            tvTbl = tvTbl.dropna().reset_index()
+            if tvTbl.size == 0:
+                raise ValueError(f"Cannot find matching input variables for tertiary variable '{thisTV['id']}'. ")
+
+            # Now we have a list of valid files that can be made. Store the results
+            tvTbl['outFile'] = [
+                os.path.join(outDirs["tertiaryVariables"], thisKey, fName)
+                for fName in f"{thisTV["outputVars"][0]}_" + tvTbl["datasetID"] + "_" + tvTbl['gridID']+"_"+tvTbl["expt"]+"_"+tvTbl["stems"]+".nc"
+            ]
+
+            # Add to output dict
+            outDict={}
+            for idx, rw in tvTbl.iterrows():
+                inputVarDict={v:rw[v] for v in thisTV['inputVars']}
+                outDict[rw['outFile']] =inputVarDict 
+            tvDict[thisTV['id']] = outDict
+
+            # Add to variable palette
+            postcalPal=pd.concat([postcalPal,
+                               parseFilelist(tvTbl['outFile'].to_list())])
+            varPal = pd.concat([varPal,
+                               parseFilelist(tvTbl['outFile'].to_list())])
 
 
     # Indicators -----------------------------------------------------
@@ -256,15 +307,20 @@ def getWorkflow(config):
         #Build the rest of the path
         varPal["indPath"] = [
             os.path.join(outDirs["indicators"],
-                         thisInd["id"],
+                         indKey,
                          rw["indFname"])
             for idx, rw in varPal.iterrows()
         ]
         #Only extract the dict for the part that we are actually
-        #interested in
-        useThese = varPal["varID"] == thisInd["variables"]
+        #interested in, including both variables and datasets
+        varPal['hasVars'] = varPal["varID"] == thisInd["variables"]
+        varPal['correctDataset'] = [v in thisInd['datasets']  for v in varPal['datasetID']]
+        if "all" in thisInd['datasets']:
+            useThese = varPal['hasVars']
+        else:
+            useThese = varPal['hasVars'] & varPal['correctDataset']
         if not any(useThese):
-            raise ValueError(f"Cannot find variable(s) {thisInd["variables"]} to calculate indicators from.")
+            raise ValueError(f"Cannot find variable(s) {thisInd["variables"]} for datasets '{thisInd['datasets']}' to calculate indicators from.")
         indDict[indKey] = {rw["indPath"]: [rw["path"]] \
                                     for idx, rw in varPal[useThese].iterrows()}
 
@@ -339,6 +395,10 @@ def getWorkflow(config):
         .to_dict()
     )
 
+    #Separate the lists of area statistics into ensstats and members for use in
+    #the database output
+    mergedCSVDict= asTbl.groupby("type").apply(lambda x: list(x["asPath"]), include_groups=False).to_dict()
+
     # Plots----------------------------------------------------
     #Get list of areal statistics csv files (in the ensstats version)
     csvList = pd.DataFrame(list(asDict.keys()), columns=["path"])
@@ -371,16 +431,16 @@ def getWorkflow(config):
         # * Yearly (or monthly) based indicators show a time series, also for ensemble statistcs
         if thisInd["time_binning"] == "periods":
             # Box plot - requires ensemble csv files
-            bxpFname = os.path.join(outDirs["plots"], f"{thisInd['id']}_boxplot.png")
+            bxpFname = os.path.join(outDirs["outputs"],'plots', f"{thisInd['id']}_boxplot.png")
             pltDict[bxpFname] = csvDict[str(thisInd["id"])]
 
             # Spatial plot - requires ensemble netcdf files
-            spFname = os.path.join(outDirs["plots"], f"{thisInd['id']}_spatial.png")
+            spFname = os.path.join(outDirs["outputs"],'plots', f"{thisInd['id']}_spatial.png")
             pltDict[spFname] = ncDict[str(thisInd["id"])]
 
         elif thisInd["time_binning"] in ["years", "months"]:
             # Time series plot - requires ensemble csv files
-            lpFname = os.path.join(outDirs["plots"], f"{thisInd['id']}_lineplot.png")
+            lpFname = os.path.join(outDirs["outputs"],'plots', f"{thisInd['id']}_lineplot.png")
             pltDict[lpFname] = csvDict[str(thisInd["id"])]
 
     # Collate and round off----------------------------------------------
@@ -388,10 +448,12 @@ def getWorkflow(config):
         "primVars": pvDict,
         "secondaryVars": svDict,
         "calibratedVars":calDict,
+        "tertiaryVars": tvDict,
         "indicators": indDict,
         "regridded": rgDict,
         "ensstats": ensDict,
         "arealstats": asDict,
+        "mergedCSVs":mergedCSVDict,
         "plots": pltDict,
     }
     # Create an "all" dict  containing 
@@ -401,12 +463,12 @@ def getWorkflow(config):
         if k in ["primVars",
                  "secondaryVars",
                  "calibratedVars",
+                 "tertiaryVars",
                  "indicators"]:  # Requires special handling, as these are nested lists
             for x in v.values():
                 allList += x.keys()
-        # elif k in ["secondaryVars"]:  # Requires special handling, as these are nested lists
-        #     for x in v.values():
-        #         allList += x["files"]
+        elif k in ["mergedCSVs"]:  # Skip this
+            continue
         else:
             allList += v.keys()
     rtn["all"] = allList

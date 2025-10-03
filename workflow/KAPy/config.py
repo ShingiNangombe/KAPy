@@ -9,7 +9,6 @@ import yaml
 import pandas as pd
 from snakemake.utils import validate
 import os
-import sys
 import ast
 
 
@@ -24,8 +23,8 @@ def readConfig(configfile):
         with open(configfile, "r") as f:
             cfg = yaml.safe_load(f)
     else:
-        sys.exit(
-            f"Cannot find configuration file: {configfile}. "
+        raise FileNotFoundError(
+            f"Cannot find configuration file '{configfile}'. "
             + f"Working directory: '{os.getcwd()}'"
         )
     return cfg
@@ -76,7 +75,12 @@ def validateConfig(config):
                         "dictCols": ["additionalArgs"],
                         "schema": "calibration",
                         "optional": True},
-        "indicators": {"listCols": ["seasons"], 
+        "tertiaryVars": {
+            "listCols": ["inputVars", "outputVars"],
+            "dictCols": ["additionalArgs"],
+            "schema": "derivedVars",
+            "optional": True},
+        "indicators": {"listCols": ["seasons","datasets"], 
                        "dictCols": ["additionalArgs"], 
                        "schema": "indicators",
                        "optional": True},
@@ -100,13 +104,17 @@ def validateConfig(config):
         # We allow some columns to be defined here as lists, but these need to be
         # parsed before we can actually use them for something
         for col in theseVals["listCols"]:
-            thisTbl[col] = thisTbl[col].str.split(",")
+            thisTbl[col] = thisTbl[col].apply(lambda x: [item.strip() for item in x.split(",")] if pd.notnull(x) else [])
         # Note that Snakemake doesn't validate arrays in tabular configurations at the moment
         # https://github.com/snakemake/snakemake/issues/2601
         # We therefore need to drop the list columns from the validation scheme
         valThis = thisTbl.drop(columns=theseVals["listCols"])
         # Validate against the appropriate schema.
-        validate(valThis, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))
+        try:
+            validate(valThis, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))    
+        except Exception as e:
+            raise ValueError(f"Validation of {thisTblKey} in '{thisCfgFile}' failed with error: {e} ")
+
         # Dict columns also need to be parsed
         for col in theseVals["dictCols"]:
             try:
@@ -137,6 +145,13 @@ def validateConfig(config):
         # Write the integers back to finish
         config["seasons"][thisKey]["months"] = theseMnths
 
+    #Require that units are consistent across a variable
+    inputvarDf=pd.DataFrame.from_dict(config["inputs"],orient="index")
+    unitCount=inputvarDf.groupby('varID')['units'].nunique()
+    if any(unitCount>1):
+        multiUnits = unitCount[unitCount > 1].index
+        raise ValueError(f"Variable '{multiUnits[0]}' has {unitCount[multiUnits[0]]} different units defined. Please ensure consistency between units in the same varID.")
+
     # Season selected in the indicator table must be valid
     # Currently allow only one season per indicator. This needs to be fixed in the future
     indTbl = pd.DataFrame.from_dict(config["indicators"], orient="index")
@@ -145,9 +160,12 @@ def validateConfig(config):
         for requestSeason in thisrw["seasons"]:
             if not (requestSeason in validSeasons):
                 raise ValueError(f"Unknown season '{requestSeason}' requested for indicator '{thisrw["id"]}'.")
+            
+    # If the temporary directory doesn't exist, create it
+    if not os.path.exists(config['dirs']['tempDir']):
+        os.makedirs(config['dirs']['tempDir'])
 
     return config
-
 
 def getConfig(configfile):
     """

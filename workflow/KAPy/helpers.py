@@ -47,9 +47,14 @@ def readFile(thisPath,format=None,chunks={}):
     if format==None:
         format = os.path.splitext(os.path.basename(thisPath))[1]
     if format == ".nc":
-        thisDat = xr.open_dataarray(thisPath,
-                                    chunks=chunks, #Use supplied chunking
-                                    use_cftime=True)
+        try:
+            time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
+            thisDat = xr.open_dataarray(thisPath,
+                                        chunks=chunks, #Use supplied chunking
+                                        decode_times=time_coder)
+        except Exception as e:
+            raise IOError(f"Failed to open NetCDF file '{thisPath}': {e}")
+    
         #Each file should only contain one variable, but we also need
         #to handle the situation where there is CRS information stored
         #as a variable. Hence, we open as a dataset, and then proceed
