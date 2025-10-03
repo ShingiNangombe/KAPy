@@ -78,8 +78,8 @@ def writeToDatabase(outFile, ensstats, members):
 
     #Load and then write member statistics
     with conn:  # wraps everything in one transaction
-        df=pd.read_csv(members[0])
-        df.to_sql("Ensemble_members", conn, if_exists="append", index=False, chunksize=5000)
+        for df in pd.read_csv(members[0], chunksize=100_000):
+            df.to_sql("Ensemble_members", conn, if_exists="append", index=False)
 
     # Create ensemble statistics table
     conn.execute("""
@@ -111,8 +111,8 @@ def writeToDatabase(outFile, ensstats, members):
 
     #Load and then write ensemble statistics
     with conn:  # wraps everything in one transaction
-        df=pd.read_csv(ensstats[0])
-        df.to_sql("Ensemble_statistics", conn, if_exists="append", index=False, chunksize=5000)
+        for df in pd.read_csv(ensstats[0], chunksize=100_000):
+            df.to_sql("Ensemble_statistics", conn, if_exists="append", index=False)
 
     #Set indexing
     cursor = conn.cursor()
