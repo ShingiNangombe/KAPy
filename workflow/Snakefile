@@ -304,5 +304,7 @@ rule plots:
 rule all:
     input:
         wf['all'],
+        rules.merged_members.output,
+        rules.merged_ensstats.output,
         rules.database.output
     default_target: True

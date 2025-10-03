@@ -54,23 +54,6 @@ def mergeCSVs(outFile, inFiles):
 
 
 def writeToDatabase(outFile, ensstats, members):
-    #Load data file function
-    def prepareDataFile(thisPath):
-        #Load file
-        datIn=pd.read_csv(thisPath)
-        
-        #Process filename 
-        datIn.insert(0,'filename',os.path.basename(thisPath))
-        datIn.insert(2,'memberID',datIn['filename'].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.*).csv$"))
-        datIn.insert(2,'expt',datIn['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
-        datIn.insert(2,'gridID',datIn['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
-        datIn.insert(2,'datasetID',datIn['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
-        datIn.insert(2,'indID',datIn['filename'].str.extract("^([^_]+)_.*$"))
-
-        #Finish
-        datOut=datIn.drop(columns=["filename","index"])
-        return(datOut)
-    
     # Connect to (or create) a SQLite database - Delete the file if it exists
     if os.path.exists(outFile[0]):
         os.remove(outFile[0])
@@ -95,10 +78,8 @@ def writeToDatabase(outFile, ensstats, members):
 
     #Load and then write member statistics
     with conn:  # wraps everything in one transaction
-        for f in members:
-            df = prepareDataFile(f)
-            df.to_sql("Ensemble_members", conn, if_exists="append", index=False, chunksize=5000)
-
+        df=pd.read_csv(members[0])
+        df.to_sql("Ensemble_members", conn, if_exists="append", index=False, chunksize=5000)
 
     # Create ensemble statistics table
     conn.execute("""
@@ -128,12 +109,10 @@ def writeToDatabase(outFile, ensstats, members):
         );
     """)
 
-    #Load and then write member statistics
-
+    #Load and then write ensemble statistics
     with conn:  # wraps everything in one transaction
-        for f in ensstats:
-            df = prepareDataFile(f)
-            df.to_sql("Ensemble_statistics", conn, if_exists="append", index=False, chunksize=5000)
+        df=pd.read_csv(ensstats[0])
+        df.to_sql("Ensemble_statistics", conn, if_exists="append", index=False, chunksize=5000)
 
     #Set indexing
     cursor = conn.cursor()
@@ -143,10 +122,5 @@ def writeToDatabase(outFile, ensstats, members):
     # Commit and close
     conn.commit()
     conn.close()
-
-    #Write a csv version as well
- #   esDat.to_csv(os.path.join(config['dirs']['outputs'],"Ensemble_statistics.csv"),index=False)
-  #  memDat.to_csv(os.path.join(config['dirs']['outputs'],"Ensemble_members.csv"),index=False)
-
 
 

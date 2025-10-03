@@ -20,7 +20,7 @@ dirs:
 outputs:
     ensembleStatisticsCSV: 'Ensemble_statistics.csv'
     ensembleMembersCSV: 'Ensemble_members.csv'
-    database: 'KAPy_areal_statistics.sqlite'
+    database: 'KAPy_outputs.sqlite'
 
 # Configuration options------------------------------------
 arealstats:

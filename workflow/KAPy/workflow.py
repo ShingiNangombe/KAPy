@@ -467,7 +467,7 @@ def getWorkflow(config):
                  "indicators"]:  # Requires special handling, as these are nested lists
             for x in v.values():
                 allList += x.keys()
-        elif k in ["database"]:  # Skip
+        elif k in ["mergedCSVs"]:  # Skip this
             continue
         else:
             allList += v.keys()
