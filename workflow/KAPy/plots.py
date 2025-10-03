@@ -170,8 +170,7 @@ def makeSpatialplot(outFile, srcFiles):
 
 # Lineplot------------------------------------------------------------------
 """
-indID='101y'
-outFile=f'outputs/7.plots/{indID}_lineplot.png'
+outFile="outputs/09.outputs/plots/101y_lineplot.png"
 srcFiles=wf['plots'][outFile]
 """
 
@@ -191,22 +190,26 @@ def makeLineplot(outFile,  srcFiles):
     datdf["datetime"] = [datetime.strptime(d,"%Y-%m-%d") for d in datdf["time"]]
     datdf['lbl']=[ rw['source'] + "-" + rw['experiment'] if rw['experiment']!='no-expt' else rw['source']
                   for idx,rw in datdf.iterrows()]
+    #Select a single areaID (the first
+    thisAreaID=datdf['areaID'].unique()[0]
+    datdf=datdf[datdf['areaID']==thisAreaID]
 
     # Now select data for plotting
     # We only plot the central value, not the full range
     # Drop the standard deviation - we only want the mean
     pltDat = datdf[datdf["percentiles"] == datdf["percentiles"].median()]
-    pltDat = pltDat[pltDat["statistic"] == "mean"]
+    pltDat = pltDat[pltDat["arealStatistic"] == "mean"]
 
     # Now plot
     p = (
-        ggplot(pltDat, aes(x="datetime", y="indicator", colour="lbl"))
+        ggplot(pltDat, aes(x="datetime", y="indicator_mean", colour="lbl"))
         + facet_wrap("~seasonID",as_table=False,dir="v")
         + geom_point()
         + labs(
             x="",
             y=f"Value",
-            colour=""
+            colour="",
+            title=f"AreaID = {thisAreaID}"
         )
         + theme_bw()
         + scale_x_datetime(date_labels="%Y")

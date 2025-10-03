@@ -190,7 +190,7 @@ rule _09_lineplots:
     output:
         os.path.join(outDirs['outputs'],'plots','{indID}_lineplot.png')
     input:
-        lambda wildcards: wf['outputs'][os.path.join(outDirs['outputs'],'plots',
+        lambda wildcards: wf['plots'][os.path.join(outDirs['outputs'],'plots',
                                                    f"{wildcards.indID}_lineplot.png")]
     run:
         KAPy.makeLineplot(outFile=output,
@@ -226,7 +226,7 @@ rule overview:
         KAPy.VariableOverview(config)
 
 #Merged csvs
-rule merged_ensstats:
+rule areal_ensstats:
     output:
         os.path.join(outDirs['outputs'],config['outputs']["ensembleStatisticsCSV"])
     input:
@@ -234,7 +234,7 @@ rule merged_ensstats:
     run:
         KAPy.mergeCSVs(outFile=output,inFiles=input)
 
-rule merged_members:
+rule areal_members:
     output:
         os.path.join(outDirs['outputs'],config['outputs']["ensembleMembersCSV"])
     input:
@@ -245,8 +245,8 @@ rule merged_members:
 # Database 
 rule database:
     input:
-        ensstats=rules.merged_ensstats.output,
-        members=rules.merged_members.output
+        ensstats=rules.areal_ensstats.output,
+        members=rules.areal_members.output
     output:
         os.path.join(outDirs['outputs'],config['outputs']["database"])
     run:
@@ -295,6 +295,12 @@ rule ensstats:
     input:
         list(wf['ensstats'].keys())
 
+
+#Ensemble statistics
+rule arealstats:
+    input:
+        list(wf['arealstats'].keys())
+
 #Plots
 rule plots:
     input:
@@ -304,7 +310,7 @@ rule plots:
 rule all:
     input:
         wf['all'],
-        rules.merged_members.output,
-        rules.merged_ensstats.output,
+        rules.areal_members.output,
+        rules.areal_ensstats.output,
         rules.database.output
     default_target: True
