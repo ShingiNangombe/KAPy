@@ -137,7 +137,9 @@ def buildPrimVar(outFile, inFiles,varID,internalVarName,importScriptPath,importS
 	else:
 		#Use a custom import
 		imptFn=helpers.getExternalFunction(importScriptPath, importScriptFunction)
-		da = imptFn(inFiles,varID=varID,internalVarName=internalVarName)  
+		da = imptFn(inFiles,varID=varID,internalVarName=internalVarName,
+			  		units=units, picklePrimaryVariables=picklePrimaryVariables,
+					cutoutArgs=cutoutArgs)  
 
 	# Unit handling -----------------------------
 	# Note that this is enforced here, even if it is already handled in the custom
