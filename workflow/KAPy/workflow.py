@@ -397,7 +397,7 @@ def getWorkflow(config):
 
     #Separate the lists of area statistics into ensstats and members for use in
     #the database output
-    dbDict= asTbl.groupby("type").apply(lambda x: list(x["asPath"]), include_groups=False).to_dict()
+    mergedCSVDict= asTbl.groupby("type").apply(lambda x: list(x["asPath"]), include_groups=False).to_dict()
 
     # Plots----------------------------------------------------
     #Get list of areal statistics csv files (in the ensstats version)
@@ -453,7 +453,7 @@ def getWorkflow(config):
         "regridded": rgDict,
         "ensstats": ensDict,
         "arealstats": asDict,
-        "database":dbDict,
+        "mergedCSVs":mergedCSVDict,
         "plots": pltDict,
     }
     # Create an "all" dict  containing 

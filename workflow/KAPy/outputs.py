@@ -21,6 +21,38 @@ members=wf['database']['members']
 outFile=[os.path.join(config['dirs']['outputs'],'KAPy_outputs.sqlite')]
 """
 
+def mergeCSVs(outFile, inFiles):
+    #Load data file function
+    def prepareDataFile(thisPath):
+        #Load file
+        datIn=pd.read_csv(thisPath)
+        
+        #Process filename 
+        datIn.insert(0,'filename',os.path.basename(thisPath))
+        datIn.insert(2,'memberID',datIn['filename'].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.*).csv$"))
+        datIn.insert(2,'expt',datIn['filename'].str.extract("^[^_]+_[^_]+_[^_]+_([^_]+)_.*$"))
+        datIn.insert(2,'gridID',datIn['filename'].str.extract("^[^_]+_[^_]+_([^_]+)_.*$"))
+        datIn.insert(2,'datasetID',datIn['filename'].str.extract("^[^_]+_([^_]+)_.*$"))
+        datIn.insert(2,'indID',datIn['filename'].str.extract("^([^_]+)_.*$"))
+
+        #Finish
+        datOut=datIn.drop(columns=["filename","index"])
+        return(datOut)
+    
+    # Delete the output file if it exists
+    if os.path.exists(outFile[0]):
+        os.remove(outFile[0])
+    
+    #Load and then write data individually to a merged file
+    #Only write the header if the file doesn't exist
+    hasHeader=False
+    for f in inFiles:
+        df = prepareDataFile(f)
+        df.to_csv(outFile[0],index=False,mode="a",header=not hasHeader)
+        hasHeader=True
+
+
+
 def writeToDatabase(outFile, ensstats, members):
     #Load data file function
     def prepareDataFile(thisPath):

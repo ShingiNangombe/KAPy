@@ -17,6 +17,10 @@ dirs:
     arealstats: 'outputs/08.areal_statistics'
     outputs: 'outputs/09.outputs'
     tempDir: 'outputs/tmp'
+outputs:
+    ensembleStatisticsCSV: 'Ensemble_statistics.csv'
+    ensembleMembersCSV: 'Ensemble_members.csv'
+    database: 'KAPy_areal_statistics.sqlite'
 
 # Configuration options------------------------------------
 arealstats:

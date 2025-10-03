@@ -8,6 +8,7 @@
         "outputGrid",
         "arealstats",
         "dirs",
+        "outputs",
         "ensembles",
         "processing"
     ],
@@ -111,6 +112,30 @@
                 },
                 "tempDir": {
                     "description": "Temporary directory to be used for scratch files",
+                    "type": "string"
+                }
+            }
+        },
+        "outputs": {
+            "description": "Paths for writing output files",
+            "type": "object",
+            "required": [
+                "ensembleStatisticsCSV",
+                "ensembleMembersCSV",
+                "database"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "ensembleStatisticsCSV": {
+                    "description": "Path to .csv file combining all areal statistics summarised across the entire ensemble.",
+                    "type": "string"
+                },
+                "ensembleMembersCSV": {
+                    "description": "Path to .csv file combining the  areal statistics for each individual ensemble member.",
+                    "type": "string"
+                },
+                "database": {
+                    "description": "Path to SQLite database merging all outputs from the pipeline.",
                     "type": "string"
                 }
             }

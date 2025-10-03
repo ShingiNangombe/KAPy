@@ -22,6 +22,7 @@ configfile: "./config/config.yaml"  #Defined relative to execution directory
 config=KAPy.validateConfig(config)
 outDirs=config['dirs']
 
+
 #Generate filename dicts
 wf=KAPy.getWorkflow(config)
 
@@ -183,6 +184,7 @@ else:  #No dependency on the shapefile
                                     shapefile="",
                                     useAreaWeighting=config['arealstats']['useAreaWeighting'],
                                     idColumn=config['arealstats']['idColumn'])
+
 #Plots        
 rule _09_lineplots:
     output:
@@ -223,14 +225,30 @@ rule overview:
     run:
         KAPy.VariableOverview(config)
 
+#Merged csvs
+rule merged_ensstats:
+    output:
+        os.path.join(outDirs['outputs'],config['outputs']["ensembleStatisticsCSV"])
+    input:
+        wf['mergedCSVs']['ensstats']
+    run:
+        KAPy.mergeCSVs(outFile=output,inFiles=input)
+
+rule merged_members:
+    output:
+        os.path.join(outDirs['outputs'],config['outputs']["ensembleMembersCSV"])
+    input:
+        wf['mergedCSVs']['members']
+    run:
+        KAPy.mergeCSVs(outFile=output,inFiles=input)
 
 # Database 
 rule database:
     input:
-        ensstats=wf['database']['ensstats'],
-        members=wf['database']['members'],
+        ensstats=rules.merged_ensstats.output,
+        members=rules.merged_members.output
     output:
-        os.path.join(outDirs['outputs'],'KAPy_outputs.sqlite')
+        os.path.join(outDirs['outputs'],config['outputs']["database"])
     run:
         KAPy.writeToDatabase(outFile=output,
                              ensstats=input.ensstats, 
