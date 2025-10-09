@@ -6,3 +6,5 @@ __pycache__
 Snakefile
 config.yaml
 *.Rproj
+testing/*
+outputs/*

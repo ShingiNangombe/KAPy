@@ -1,11 +1,26 @@
+# KAPy minimum working example
+#
+# This configuration provides a minimum working example of a KAPy configuration, 
+# performing the simplest version of a KAPy pipeline (primaryVars, one indicator,
+# areal statistics and outputs). The file can also be used as a template to build 
+# up your own custom configuration.  More details can be found in the GitHub 
+# documentation and the tutorials, most of which use this configuration as a point of departure.
+#
+# The config also assumes the presence of the tutorial dataset, which can be downloaded
+# from https://download.dmi.dk/Research_Projects/KAPy/tas_example_dataset.zip
+# See Tutorial 01 in particular for more information
+# 
+# For a more complete configuration, taking advantage of all features, see the configuration
+# in ./workflow/testing
+
 configurationTables:
-    inputs:  'config/inputs.tsv'
-    indicators: 'config/indicators.tsv'
-    secondaryVars: 'config/secondaryVars.tsv'
-    calibration: 'config/calibration.tsv'
-    tertiaryVars: 'config/tertiaryVars.tsv'
     periods:  'config/periods.tsv'
     seasons: 'config/seasons.tsv'
+    inputs:  'config/inputs.tsv'
+    indicators: 'config/indicators.tsv'
+    secondaryVars: ''   
+    calibration: '' 
+    tertiaryVars: ''  
 dirs:
     primaryVariables: 'outputs/01.primaryVars'
     secondaryVariables: 'outputs/02.secondaryVars'
@@ -24,9 +39,9 @@ outputs:
 
 # Configuration options------------------------------------
 arealstats:
-    useAreaWeighting: True
-    shapefile: 'docs/tutorials/Tutorial05_files/Ghana_regions.shp'
-    idColumn: 'ADM1_PCODE'
+    useAreaWeighting: False
+    shapefile: '' 
+    idColumn: ''  
 cutouts:
     method: 'lonlatbox'  #'none'
     xmin: -4
