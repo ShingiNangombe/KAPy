@@ -5,7 +5,8 @@ print(os.getcwd())
 os.chdir("..")
 import KAPy
 os.chdir("../..")
-config=KAPy.getConfig("./config/config.yaml")  
+config=KAPy.getConfig("./config/config.yaml") 
+config=KAPy.getConfig("./workflow/testing/config.yaml") 
 wf=KAPy.getWorkflow(config)
 asID=list(wf['arealstats'].keys())[0]
 inFile=wf['arealstats'][asID]
@@ -114,9 +115,9 @@ def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idCol
         # Save files pandas
         dfOut = pd.concat([spMeanDf,spSdDf])
         dfOut.insert(0,'areaID',"all" )
+        dfOut=dfOut.reset_index()
 
     #Write out date without time for easier handling
-    dfOut=dfOut.reset_index()
     if 'time' in dfOut.columns:
         dfOut['time']=[d.strftime("%Y-%m-%d") for d in dfOut['time']]
     
