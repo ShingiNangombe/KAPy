@@ -38,9 +38,13 @@ def calculateIndicators(outFile, inFile,seasonsTable,periodsTable,seasons,time_b
     def applyStat(d,thisStat,args):
         if thisStat=="mean":
             res = d.mean("time", keep_attrs=True)
-        elif thisStat=="annmax":
+        elif thisStat=="max":
+            res =d.max("time",keep_attrs=True)
+        elif thisStat=="min":
+            res =d.min("time",keep_attrs=True)
+        elif thisStat=="meanmax":
             res =d.groupby("time.year").max().mean(dim="year", keep_attrs=True)
-        elif thisStat=="annmin":
+        elif thisStat=="meanmin":
             res =d.groupby("time.year").min().mean(dim="year", keep_attrs=True)
         elif thisStat=="count":
             #Check input arguments
