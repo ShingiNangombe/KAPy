@@ -21,8 +21,12 @@
   - **`regridded`** *(string, required)*: Directory for storing indicators regridded to a common grid.
   - **`ensstats`** *(string, required)*: Directory for storing ensemble statistics.
   - **`arealstats`** *(string, required)*: Directory for storing statistics calculated over areas.
-  - **`plots`** *(string, required)*: Directory for storing output plots.
+  - **`outputs`** *(string, required)*: Directory for storing output files and databases. Plots are stored in the ./plots subdirectory.
   - **`tempDir`** *(string, required)*: Temporary directory to be used for scratch files.
+- **`outputs`** *(object, required)*: Paths for writing output files. Cannot contain additional properties.
+  - **`ensembleStatisticsCSV`** *(string, required)*: Path to .csv file combining all areal statistics summarised across the entire ensemble.
+  - **`ensembleMembersCSV`** *(string, required)*: Path to .csv file combining the  areal statistics for each individual ensemble member.
+  - **`database`** *(string, required)*: Path to SQLite database merging all outputs from the pipeline.
 - **`arealstats`** *(object, required)*: Cannot contain additional properties.
   - **`useAreaWeighting`** *(boolean, required)*: Use area-weighting when calculating averages over a polygon or area. Nearly all climate data is presented on grids where the area of the pixels is not constant, but changes in space - for example, on a regular lat-lon grid, the pixels get smaller towards the poles. When this option is configured, the CDO `gridarea` operator is used to calculate the area of each cell, and weightings applied to the calculation of area statistics accordingly. Requires that CDO can calculate the cell area - otherwise, it is recommended to disable this option manually.
   - **`shapefile`** *(['string', 'null'], required)*: Path to shapefile to be used for defining areas. When the path is undefined, averages are calculated across the entire domain. The path should point to the .shp file.

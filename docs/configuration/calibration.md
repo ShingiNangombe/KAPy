@@ -20,13 +20,13 @@
 
 ## Properties
 
-- **`id`** *(string, required)*: Unique identifier for the calibration procedure.
+- **`id`** *(string, required)*: Unique identifier for the calibration procedure. Must match pattern: `^[^ ]+$` ([Test](https://regexr.com/?expression=%5E%5B%5E%20%5D%2B%24)). Items must be unique.
 - **`outDatasetID`** *(string, required)*: DatasetID that will be associated with calibrated output. Note that the cominbation of variable name and DatasetID  must not be a duplicate of other combinations names found in the configuration of KAPy. This variable primarily serves to distinguish between raw and calibrated variables e.g.  `CORDEX` and `CORDEX-cal` The exact choice is not important, but it is recommended to adopt a consistent approach throughout the project.
 - **`calibrationVariable`** *(string, required)*: The name of the variable to calibrate, drawn from the list of primary and secondary variables. If the variable cannot be found, an error will be raised. KAPy assumes that the same variable name is used for both the model and observational data sources.
 - **`targetDatasetID`** *(string, required)*: The ID of the dataset that will be calibrated e.g.  'CORDEX'. This is most commonly the output of a climate model, but need not be.
 - **`refDatasetID`** *(string, required)*: The ID of the dataset that will be used as the reference  data source to calibrate against, such as `ERA5`. Most commonly this will be an observational data set, a reanalysis or similar but it need not be. However, the combination of climate variable and datasetID should uniquely identify a single file within the variable palette of KAPy - if not, an error will be raised.
-- **`calPeriodStart`** *(string, required)*: Start year of the calibration period. Data after and including 1 Jan of this year will be used for calibration.
-- **`calPeriodEnd`** *(string, required)*: End year of the calibration period. Data before and including 31 Dec of this year will be used for calibration.
+- **`calPeriodStart`** *(string, required)*: Start year of the calibration period. Data after and including 1 Jan of this year will be used for calibration. Must match pattern: `^\d{4}$` ([Test](https://regexr.com/?expression=%5E%5Cd%7B4%7D%24)).
+- **`calPeriodEnd`** *(string, required)*: End year of the calibration period. Data before and including 31 Dec of this year will be used for calibration. Must match pattern: `^\d{4}$` ([Test](https://regexr.com/?expression=%5E%5Cd%7B4%7D%24)).
 - **`method`** *(string, required)*: Calibration method to be used. See above for a clarification of options. Must be one of: `["xclim-scaling", "xclim-eqm", "xclim-dqm"]`.
 - **`grouping`** *(string)*: Apply calibration independently of each time grouping selected here. Must be one of: `["none", "dayofyear", "month", "season"]`.
 - **`additionalArgs`** *(string, required)*: Additional arbitrary arguments specified as a dict to be passed to the function via keyword arguments. e.g. `{'kind'='+', group='time.month'}`. Can be an empty dict or empty string if no there are no additional parameters. e.g. `{}` .
