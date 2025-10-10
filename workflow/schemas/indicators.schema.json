@@ -8,6 +8,8 @@
     "name",
     "units",
     "variables",
+    "datasets",
+    "seasons",
     "time_binning",
     "deltaType",
     "statistic",

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "KAPy seasons configuration",
   "description": "Seasonal calculations in KAPy are configured through a tab-separated table, with one row per season. The available options are described here. All options are required",
-  "required": ["id", "name"],
+  "required": ["id", "name","months"],
   "additionalProperties": false,
   "type": "object",
   "properties": {
@@ -21,15 +21,7 @@
     },
     "months": { 
         "description": "The month(s) to include in the seasonal definition, defined by their numbers. Multiple months are specified as a common-separated list. Duplicates are not allowed",
-        "type": "array",
-        "minitems": 1,
-        "maxitems": 12,
-        "items": {
-            "type": "integer",
-            "uniqueItems" : true,
-            "minimum": 1,
-            "maximum": 12
-        }
+        "type": "string"
         }
         }
 }

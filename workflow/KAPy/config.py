@@ -101,19 +101,18 @@ def validateConfig(config):
         # Require a non-zero length
         if len(thisTbl)==0:
             raise ValueError(f"'{thisTblKey}' configuration table at {thisCfgFile} is empty.")
-        # We allow some columns to be defined here as lists, but these need to be
-        # parsed before we can actually use them for something
-        for col in theseVals["listCols"]:
-            thisTbl[col] = thisTbl[col].apply(lambda x: [item.strip() for item in x.split(",")] if pd.notnull(x) else [])
-        # Note that Snakemake doesn't validate arrays in tabular configurations at the moment
-        # https://github.com/snakemake/snakemake/issues/2601
-        # We therefore need to drop the list columns from the validation scheme
-        valThis = thisTbl.drop(columns=theseVals["listCols"])
         # Validate against the appropriate schema.
         try:
-            validate(valThis, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))    
+            validate(thisTbl, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))    
         except Exception as e:
             raise ValueError(f"Validation of {thisTblKey} in '{thisCfgFile}' failed with error: {e} ")
+
+        # We allow some columns to be defined as lists, but 
+        # note that Snakemake doesn't validate arrays in tabular configurations at the moment
+        # https://github.com/snakemake/snakemake/issues/2601
+        # We therefore parse the list after validation (and validate this item as a string)
+        for col in theseVals["listCols"]:
+            thisTbl[col] = thisTbl[col].apply(lambda x: [item.strip() for item in x.split(",")] if pd.notnull(x) else [])
 
         # Dict columns also need to be parsed
         for col in theseVals["dictCols"]:
