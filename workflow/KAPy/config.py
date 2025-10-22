@@ -10,6 +10,7 @@ import pandas as pd
 from snakemake.utils import validate
 import os
 import ast
+import jsonschema
 
 
 def readConfig(configfile):
@@ -27,6 +28,7 @@ def readConfig(configfile):
             f"Cannot find configuration file '{configfile}'. "
             + f"Working directory: '{os.getcwd()}'"
         )
+    cfg['configfile']=configfile
     return cfg
 
 
@@ -48,8 +50,15 @@ def validateConfig(config):
         os.path.dirname(os.path.abspath(__file__)), "..", "schemas"
     )
 
-    # Validate configuration file
-    validate(config, os.path.join(schemaDir, "config.schema.json"))
+    # Do custom validation handling rather the using Snakemake's. The goal
+    # here is to give a more user friendly error, when we fail. Thanks to ChatGPT
+    # for the tip
+    with open(os.path.join(schemaDir, "config.schema.json")) as f:
+        cfgSchema = yaml.safe_load(f)
+    try:
+        jsonschema.validate(instance=config, schema=cfgSchema)
+    except jsonschema.ValidationError as e:
+        raise jsonschema.ValidationError(f'❌ Validation of "{config['configfile']}" failed at "{'.'.join(map(str, e.path))}": {e.message}') 
 
     # Validate each configuration table in turn. The validation approach used
     # is defined in the following table
@@ -101,11 +110,15 @@ def validateConfig(config):
         # Require a non-zero length
         if len(thisTbl)==0:
             raise ValueError(f"'{thisTblKey}' configuration table at {thisCfgFile} is empty.")
-        # Validate against the appropriate schema.
-        try:
-            validate(thisTbl, os.path.join(schemaDir, f"{theseVals['schema']}.schema.json"))    
-        except Exception as e:
-            raise ValueError(f"Validation of {thisTblKey} in '{thisCfgFile}' failed with error: {e} ")
+        # Load the schema to validate against 
+        with open(os.path.join(schemaDir, f"{theseVals['schema']}.schema.json")) as f:
+            thisSchema = yaml.safe_load(f)
+        # Then validate row-by-row
+        for i, row in enumerate(thisTbl.to_dict(orient="records")):
+            try:
+                jsonschema.validate(instance=row, schema=thisSchema)
+            except jsonschema.ValidationError as e:
+                raise jsonschema.ValidationError(f'❌ Validation of "{thisCfgFile}" failed at row {i+1}, column "{'.'.join(map(str, e.path))}": {e.message}')
 
         # We allow some columns to be defined as lists, but 
         # note that Snakemake doesn't validate arrays in tabular configurations at the moment
@@ -176,3 +189,4 @@ def getConfig(configfile):
     cfg = readConfig(configfile)
     cfg = validateConfig(cfg)
     return cfg
+
