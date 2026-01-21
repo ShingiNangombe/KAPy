@@ -20,7 +20,7 @@ This tutorial follows, but is not linked to [Tutorial 06](Tutorial06.md).
 
 ## Background 
 
-This tutorial performs bias-correction using the `quantile delta mapping` approach from the `xclim python` package. More information on the method can be found [here](https://xclim.readthedocs.io/en/stable/notebooks/sdba.html).
+This tutorial performs bias-correction using the `quantile delta mapping` approach from the `xclim python` package. More information on the method can be found [here](https://xclim.readthedocs.io/en/v0.36.0/sdba.html).
 To make sure tmax is never < tmin at any time after bias adjustment i.e to maintain the relative relationship between the two variables at once, we introduce a bias correctioin protocol which bias adjusts tmean, tmax and tmin together using diurnal temperature and skewness of the data. The approch followed to do this correcting follows the steps below and are implemented through a Python script outside KAPy for now:
 
 => The modelled daily temperature range 
