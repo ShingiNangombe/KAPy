@@ -71,27 +71,32 @@ This stage involves uisng Python outside KAPy to bias correct tmean, tmax and tm
 
 
 ### Stage three
-This is the finals stage where KAPy shines to generate indicators and related future statistics linke dto tmin, tmean and tmax.
+This is the final stage where KAPy shines to generate indicators and related future statistics linke dto tmin, tmean and tmax.
 
-1. 
+1. We use the bias corrected files created in stage two ```/2.bc_Python_computation/processed/``` as inputs of this stage. Create the input folder and subfolders of tas, tmin and tmax.
+   ```
+   mkdir -p outputs/1.variables/tas
+   ```
+   do this also for tmin and tmax
+2. Inside each subfolder, sym link related files sourcing them from the stage two ```processed``` folder
+3. Make sure also the era5 (reference data) files are also placed in the subfolders and these you can source them from ```/1.first_KAPy_computation/outputs/1.variables/---```. You wont fond the era5 files in Stage two because we dont bias correct them
+4. Since for KAPy to run, it expects files to be present in the ```/inputs/``` folder otherwise it complains.Thus we can trick it by placining inpute files in there but which it will not use since we want KAPy to use the already present files in ```outputs/1.variables```. So we put the files which were used to generate the ```1.variables``` in the input foler. We We do this ny sym linking them from the input folder of ```1.first_KAPy_computation``` in stage one.
+5. After we do this, we expect KAPy to skip the gereation of the primVar files as they already exist. To test this, do a ```dry run``` first and you should see that amongst the jobs KAPy will do, the primVar one is not there.
+```
+snakemake -n
+```
+If satisfied, then run the full KAPy
 
-6. Once the output has been completed, you can see the new set of calibrated variables have appeared in the `calibration`directory  e.g.,
 ```
-ls ./outputs/2.calibration/*
+snakemake --cores 8
+```
+6. Remember if for some reason, KAPy stops and you wnat to continue again after solving the problem, you can use the following rerun-incomplete command (or sometimes you need to start by unlocking snakemake first)
+```
+snakemake --unlock
+```
+```
+snakemake --cores 8 --rerun-incomplete
 ```
 
-7. Output plots for 102 are also generated automatically. Try browsing the plots in a viewer e.g
-```
-eog ./outputs/7.plots/*
-```
-
-8. Do a quick comparison of the outputs derived with and without calibration. In `101-scaling` you will see that the CORDEX values in `101-nocal` have been moved to align with the ERA5 values e.g. the mean values for CORDEX rcp85 in 1950 are arond 298K in `101-nocal` but have been shifted to around 300 K in `101-scaling`.
-
-9. You can perform a more detailed analysis on your own using e.g. `Python`, `R` or your programming language of choice. We have included a Python example, that can be downloaded from [here](Tutorial06_files/compare_calibration.py). You can run the script as follows:
-```
-python docs/tutorials/Tutorial06_files/compare_calibration.py
-```
-10. The script writes an output figure `Tutorial06.png` to the KAPy root directory. Opening if with an image viewer, you will see the shift in the mean temperature between the `nocal` and `scaling` indicators more clearly (in this case for the RCP8.5) scenario. Note also the close agreement between ERA5 and `CORDEX-101-scaling` during the calibration period 1981-2010.
-
-11. That concludes this tutorial. KAPy is currently  limited to these three calibratiopn methods, but within a short time, more methods will be added.
+6. That concludes this tutorial. This is a temporary way of getting the bias corrected tmax and tmin files which si done outside KAPy. The plan is to implement this in KAPy in the near future.
 
