@@ -1,12 +1,18 @@
-# Tutorial 7 - Multi-variable Bias correction of tmax and tmin outside KAPy
+# Tutorial 7 - Multi-variable Bias correction of tmax and tmin and generation of related climate statistics
 
 ## Goal
 
-To implement bias calibration of tmax and tmin together making sure tmax is never lower than tmin after correction.
+To implement bias calibration of ```tmax``` and ```tmin``` together making sure tmax is never lower than tmin after correction. Then generation of bias corrected products.
 
 ## What are we going to do?
 
-In this tutorial we implement a bias-correction of tmax and tmin together. We use the simulated monthly tmax and tmin from CORDEX over Ghana, and correct against ERA5 as the observational reference dataset. Hrere, the correction is done outside KAPy (using Python) with the intention of incooperating it in KAPy in the future.
+In this tutorial we implement a bias-correction of tmax and tmin together. We use the simulated monthly tmax and tmin from ```CORDEX``` over ```Ghana```, and correct against ```ERA5``` as the observational reference dataset. Here, the correction is done outside KAPy (using ```Python```) with the intention of incooperating it in KAPy in the future. We the use the bias corrected data and running through KAPy to generate climate change statisctics in the form of NetCDF and CSV files. A summary of the steps followed are:
+
+ Generate the files which are time merged from 1950 to 2100. Its best to do this using KAPy since the first rule of the KAPy snake ḿake does exactly that. 
+  
+  Using files gerated as input files, do the bias correctiing using the Pythin script provided here, do the bias correction of tmean, tmax and tmin together. Make sure the paths in the script are pointing to your data. This will geretae the bias corrected files.
+
+ Now place the bias corrected files in a new KAPy folder and then run run KAPy to produce the indicators and the related areaal statistics in the for  of csv and NetCDF files.
 
 ## Point of departure
 
@@ -16,21 +22,43 @@ This tutorial follows but is not linked to [Tutorial 06](Tutorial06.md).
 
 This tutorial performs bias-correction using the `quantile delta mapping` approach from the `xclim python` package. More information on the method can be found [here](https://xclim.readthedocs.io/en/stable/notebooks/sdba.html).
 To make sure tmax is never < tmin at any time after bias adjustment i.e to maintain the relative relationship between the two variables at once, we introduce a bias correctioin protocola which bias adjusts tmean, tmax and tmin together using diurnal temperature and skewness of the data. The approch followed to do this correcting follows the steps below and are implement through a Python script outside KAPy for now:
- The modelled daily temperature range (DTR = Tmax − Tmin) was QQ-scaled against gridded observations, resulting in DTRBA. All instances where DTRBA < 0 were hard set to 0.
- Then skew is computed where skewness Z = Tmean − (Tmax + Tmin)/2. Here the model Z is estimated then QQ-scaled against gridded observations, resulting in ZBA.
- Finally, the bias adjusted Tmin and Tmax were then calculated using the equations Tmin,BA =Tmean,BA − ZBA − DTRBA/2 and Tmax,BA = Tmean,BA − ZBA + DTRBA/2.
 
-## Instructions
-1. In the previous tutorials, you performed a complete run of a KAPy pipeline without calibration methods turned on. Calibration functionality is enabled first in `config/config.yaml` in the `configurationTables` section. Start by commenting the option for `calibration` back in:
+=> The modelled daily temperature range 
+```
+DTR = Tmax − Tmin
+```
+was QQ-scaled against gridded observations, resulting in DTRBA. All instances where ```DTRBA < 0``` were hard set to 0.
 
+=> Then skew is computed where skewness is Z. Here the model Z is estimated then QQ-scaled against gridded observations, resulting in ZBA
 ```
-configurationTables:
-    inputs:  'config/inputs.tsv'
-    indicators: 'config/indicators.tsv'
-    calibration: 'config/calibration.tsv'
-    periods:  'config/periods.tsv'
-    seasons: 'config/seasons.tsv'
+Z = Tmean − (Tmax + Tmin)/2
 ```
+
+=> Finally, the bias adjusted Tmin and Tmax were then calculated using the equations 
+```
+Tmin_BA =Tmean_BA − ZBA − DTRBA/2
+```
+and 
+```
+Tmax_BA = Tmean_BA − ZBA + DTRBA/2
+```
+
+## Detailed Instructions
+Since there there are three stages to follow, create these three folders and name them ```1.First_KAPy```, ```2.Python_bias_correction``` and ```3.Second_KAPy```. In the folder ```1.``` and ```3.```, place the KAPy source code and in folder ```2.```, place the python bas correction file found [here](Tutorial07_files/indicators.tsv). 
+### Stage one
+1. Here, we want to generate the aggrgated files of each model to make them range from historical to end of cenutury. We do this in KAPy using the first rule of the KAPy snakemake primVar. Enter the ```1.First_KAPy``` folder. Place your input files of tas, tmax and tmin of all the models and the reference data in the ```/inputs/``` folder. Instead of copying these files, you can just symbolicaly link ``ln -s```  them from where therey are to avoid having too many duplicates of the same data. 
+2. In the ```config/config.csv```, make sure the pickle part is switched off so that you generate the ```.nc``` files instead of the default ```.pkl``` files. The rest of the parts and file are not important at this stage as we are going to force KAPy to only run the first rule which onky generates the primary variables ie aggregating the model files of each model which are time fragmeneted. Thus, here only interested in files generated in placed in ```/outputs/1.variables/```
+3. To check if everything is set correctly set, do a ```dry-run``` of KAPy remembering to force to only check for the first rule .. which you should specify when commanding the dry run:
+ 
+```
+snakemake -n primVar
+```
+If all is well, KAPy will tell you (show you on the screen) what steps it will follow to generate the files you want.
+4. Tf satisfied, then run KAPy specifying the number of cores you want to use (and available) to generate the files and this weill generate and place files into ```/outputs/1.variables/```:
+```
+snakemake --cores 8 primVar
+```
+Then leave the ``1.First_KAPy``` folder to prepare for the next stage. 
 
 2. The calibration methods are defined and configured via `./config/calibration.tsv` which is already available and configured correctly in a default install of KAPy. Open this file in a spreadsheet (e.g. LibreOffice) and have a look. Here you will see that the definition of a calibrated variable called `tas-cal`. This  output variable is based on using `tas` from `CORDEX` as the datasource, and is calibrated against `ERA5` as the reference source, using the period 1981-2010 as the reference. The calibration method is set in the `method`column to `xclim-scaling`, while the `grouping` argument is set to `month`, indicating that we should perform the calibration individually on months.  Note also under `additionalArgs` that we are passing a dict with `kind='+'` to use calibration in the additive mode - this is appropriate for temperature, but a multiplicative model `kind= '*'` would be more appropriate for precipitation. 
 
