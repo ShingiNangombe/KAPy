@@ -6,11 +6,11 @@ To implement bias calibration of ```tmax``` and ```tmin``` together making sure 
 
 ## What are we going to do?
 
-In this tutorial we implement a bias-correction protocol of correcting tmax and tmin together. We use the simulated monthly tmax and tmin from ```CORDEX``` over ```Ghana```, and correct against ```ERA5``` as the observational reference dataset. Here, the correction is done outside KAPy (using ```Python```) with the intention of incooperating it into KAPy in the future. We then use the bias corrected data in KAPy to generate climate change statisctics in the form of NetCDF and CSV files. A summary of the steps followed are:
+In this tutorial we implement a bias-correction protocol of correcting tmax and tmin together. We use the simulated monthly tmax and tmin from ```CORDEX``` over ```Ghana```, and correct against ```ERA5``` as the observational reference dataset. Here, the correction is done outside KAPy (using ```Python```) with the intention of incooperating it into KAPy in the future. We then use the bias corrected data in KAPy to generate climate change statistics in the form of NetCDF and CSV files. A summary of the steps followed are:
 
  Generate the files which are time merged from historical to the end of century. It's best to do this using KAPy since the first rule of KAPy does exactly that. 
   
-  Using files gerated in previous step as input files, do the bias correcting using the Python script provided here, do the bias correction of tmean, tmax and tmin together. Make sure the paths in the script are pointing to your data. This will generate the bias corrected files.
+  Using files gerated in previous step as input files, do the bias correcting using the Python script provided [here](Tutorial07_files/final_bias-corr_TMAX-TMIN.py), do the bias correction of tmean, tmax and tmin together. Make sure the paths in the script are pointing to your data. This will generate the bias corrected files.
 
  Now place the bias corrected files in a new KAPy folder and then run KAPy to produce the indicators and the related areal statistics in the form  of csv and NetCDF files.
 
@@ -44,7 +44,7 @@ Tmax_BA = Tmean_BA − ZBA + DTRBA/2
 ```
 
 ## Detailed Instructions
-Since there there are three stages to follow, create these three folders and name them ```1.first_KAPy_computation```, ```2.bc_Python_computation``` and ```3.final_KAPy_computation```. In the folder ```1.``` and ```3.```, place the KAPy source code and in folder ```2.```, place the python bas correction file found [here](Tutorial07_files/indicators.tsv). 
+Since there there are three stages to follow, create these three folders and name them ```1.first_KAPy_computation```, ```2.bc_Python_computation``` and ```3.final_KAPy_computation```. In the folder ```1.``` and ```3.```, place the KAPy source code and in folder ```2.```, place the python bas correction file found [here](Tutorial07_files/final_bias-corr_TMAX-TMIN.py). 
 
 ### Stage one
 1. Here, we want to generate the aggregated files of each model to make them range from historical to end of century. We do this in KAPy using the first rule of the KAPy snakemake ```primVar```. Enter the ```1.first_KAPy_computation``` folder. Place your input files of tas, tmax and tmin of all the models and the reference data in the ```/inputs/``` folder. Instead of copying these files, you can just symbolicaly link  ```ln -s```  them from where they are to avoid having too many duplicates of the same data. 
@@ -98,5 +98,5 @@ snakemake --unlock
 snakemake --cores 8 --rerun-incomplete
 ```
 
-6. That concludes this tutorial. This is a temporary way of getting the bias corrected tmax and tmin files which si done outside KAPy. The plan is to implement this in KAPy in the near future.
+6. That concludes this tutorial. This is a temporary way of getting the bias corrected tmax and tmin files which is done outside KAPy. The plan is to implement this in KAPy in the near future.
 
