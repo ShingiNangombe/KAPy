@@ -12,6 +12,7 @@
     "internalVarName", 
     "units",
     "experimentField", 
+    "ensMemberFields",
     "commonExperimentID", 
     "importScriptPath",
     "importScriptFunction"

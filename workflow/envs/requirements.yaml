@@ -48,6 +48,7 @@ dependencies:
   - python-cdo
   - python_cmethods
   - snakemake
+  - regionmask  
   - xarray
   - xesmf
   - xclim

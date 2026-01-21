@@ -2,14 +2,18 @@
 #Setup for debugging with VS code 
 import os
 print(os.getcwd())
-import helpers
 os.chdir("..")
 import KAPy
 os.chdir("../..")
-config=KAPy.getConfig("./config/config.yaml")  
+config=KAPy.getConfig("./config/config.yaml") 
+config=KAPy.getConfig("./workflow/testing/config.yaml") 
 wf=KAPy.getWorkflow(config)
 asID=list(wf['arealstats'].keys())[0]
 inFile=wf['arealstats'][asID]
+shapefile=config["arealstats"]['shapefile']
+idColumn=config["arealstats"]['idColumn']
+useAreaWeighting=config["arealstats"]['useAreaWeighting']
+tempDir=config['dirs']['tempDir']
 %matplotlib inline
 """
 
@@ -17,6 +21,8 @@ import xarray as xr
 import pandas as pd
 import geopandas as gpd
 from cdo import Cdo
+import regionmask
+import numpy as np
 
 def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idColumn):
     # Generate statistics over an area by applying a polygon mask and averaging
@@ -52,23 +58,37 @@ def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idCol
 
     # If we have a shapefile defined, then work with it
     if shapefile!='':
-        #Import shapefile and drop CRS
-        shapefile = gpd.read_file(shapefile)
-        shapefile.crs=None
+        #Import shapefile
+        shpFile = gpd.read_file(shapefile)
 
-        #Use geopandas as the base for this computation. We use the 
-        #pxlSize as the basis for this
-        pxlDf = pxlSize.to_dataframe().reset_index()
-        pxlGdf = gpd.GeoDataFrame(pxlDf.cell_area,
-                               geometry=gpd.points_from_xy(pxlDf[spDims[1]],pxlDf[spDims[0]]))
+        #If the shapefile is missing a CRS, stop - we don't want to assume anything here
+        if shpFile.crs is None:
+            raise ImportError(f"Shapefile '{shapefile}' is lacking a CRS (Coordinate Reference System) "+
+                              "but this is required for KAPy to work. Please add a CRS in the shapefile.")
+        
+        #Handle projection issues. 
+        # 1. If the file has supplementary coordinates of longitude and latitude, then reproject
+        #    the shapefile to long-lat and use together with the supplementary coordinates
+        if bool(set(['lat','latitude']) & set(thisDat.coords)) & bool(set(['lon','longitude']) & set(thisDat.coords)):
+            shpFile = shpFile.to_crs("EPSG:4326")  #Lon-lat
+            xDim= spGrid[ 'lon' if 'lon' in list(spGrid.coords) else 'longitude']
+            yDim= spGrid[ 'lat' if 'lat' in list(spGrid.coords) else 'latitude']
+            useSupCoords=True
+
+        # 2. Otherwise assert that the user has checked that the two CRS match.
+        #    Ideally we should check this, but I'm not convinced that it can be done robustly.
+        else:
+            useSupCoords=False
 
         #Loop over polygons
         outList=[]
-        for thisIdx, thisArea in shapefile.iterrows():
+        for thisIdx, thisArea in shpFile.iterrows():
             #Which points are in the polygon? Setup a mask
-            pxlDf['inPoly'] = pxlGdf.within(thisArea.geometry)
-            pxlMask=pxlDf.set_index(spDims).to_xarray()
-            pxlWts=pxlMask.inPoly*pxlSize
+            if useSupCoords:
+                pxlMask=regionmask.mask_geopandas(shpFile.iloc[[thisIdx]],xDim,yDim)
+            else:
+                pxlMask=regionmask.mask_geopandas(shpFile.iloc[[thisIdx]],spGrid)
+            pxlWts = xr.where(~pxlMask.isnull(), pxlSize, 0)
             
             #Apply masking and weighting and calculate
             wtMeanDf = thisDat.weighted(pxlWts).mean(dim=spDims).to_dataframe().reset_index()
@@ -95,9 +115,9 @@ def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idCol
         # Save files pandas
         dfOut = pd.concat([spMeanDf,spSdDf])
         dfOut.insert(0,'areaID',"all" )
+        dfOut=dfOut.reset_index()
 
     #Write out date without time for easier handling
-    dfOut=dfOut.reset_index()
     if 'time' in dfOut.columns:
         dfOut['time']=[d.strftime("%Y-%m-%d") for d in dfOut['time']]
     

@@ -16,9 +16,7 @@ import os
 
 
 """
-ensstats=wf['database']['ensstats']
-members=wf['database']['members']
-outFile=[os.path.join(config['dirs']['outputs'],'KAPy_outputs.sqlite')]
+inFiles=wf['mergedCSVs']['members']
 """
 
 def mergeCSVs(outFile, inFiles):
@@ -36,7 +34,7 @@ def mergeCSVs(outFile, inFiles):
         datIn.insert(2,'indID',datIn['filename'].str.extract("^([^_]+)_.*$"))
 
         #Finish
-        datOut=datIn.drop(columns=["filename","index"])
+        datOut=datIn.drop(columns=["filename"])
         return(datOut)
     
     # Delete the output file if it exists
@@ -51,6 +49,11 @@ def mergeCSVs(outFile, inFiles):
         df.to_csv(outFile[0],index=False,mode="a",header=not hasHeader)
         hasHeader=True
 
+"""
+ensstats=wf['database']['ensstats']
+members=wf['database']['members']
+outFile=[os.path.join(config['dirs']['outputs'],'KAPy_outputs.sqlite')]
+"""
 
 
 def writeToDatabase(outFile, ensstats, members):

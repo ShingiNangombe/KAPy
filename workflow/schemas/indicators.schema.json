@@ -8,6 +8,8 @@
     "name",
     "units",
     "variables",
+    "datasets",
+    "seasons",
     "time_binning",
     "deltaType",
     "statistic",
@@ -69,14 +71,16 @@
         "divide"]
     },
     "statistic": {
-      "description": "Statistic to be used to calculate the indicator. KAPy has five basic types of indicators built in. 1) `mean` calculates an average across the period. 2)`count` calculates the average number of days per year in the period above or below a threshold. Additional parameters must be supplied via the `additionalArgs` field: `threshold` is the threshold value, and `op` is the comparison operator - one of `>`,`gt`,`<`,`lt`,  `>=`, `ge`, `<=` or `le`.  3) `annmax` calculates the maximum value of the variable over the season or year - in cases where there is period binning enabled, the average annual maximum is calculated. 4) `annmin` calculates the average minimum in the same manner as `annmax` and  5) `custom` calls the function defined in `customScriptPath` and `customScriptFunction` and utilised arguments supplied as a dictionary in `additionalArgs`.",
+      "description": "Statistic to be used to calculate the indicator. KAPy has seven basic types of indicators built in. 1) `mean` calculates an average across the period. 2)`count` calculates the average number of days per year in the period above or below a threshold. Additional parameters must be supplied via the `additionalArgs` field: `threshold` is the threshold value, and `op` is the comparison operator - one of `>`,`gt`,`<`,`lt`,  `>=`, `ge`, `<=` or `le`.  3) `meanmax` calculates the maximum value of the variable over the season or year - in cases where there is period binning enabled, the average annual maximum is calculated. 4) `meanmin` calculates the average minimum in the same manner as `meanmax` 5) ´max' calculates the maximum value of the indicator across the entire binning period 6) `min` calculates the minimum value across the binning period and 7) `custom` calls the function defined in `customScriptPath` and `customScriptFunction` and utilised arguments supplied as a dictionary in `additionalArgs`.",
       "type": "string",
       "enum": [
         "custom",
         "mean",
         "count",
-        "annmax",
-        "annmin"
+        "max",
+        "min",
+        "meanmax",
+        "meanmin"
         ]
     },
     "additionalArgs": {

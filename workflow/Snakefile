@@ -11,17 +11,23 @@
 #
 # Workflow configuration options are set in config.yaml
 #
-print("Processing KAPy snakefile...")
 
-import KAPy
-import os
 
 #Setup-----------------------
 #Load configuration 
-configfile: "./config/config.yaml"  #Defined relative to execution directory
-config=KAPy.validateConfig(config)
-outDirs=config['dirs']
+DEFAULT_CONFIG = "./config/config.yaml"  #Defined relative to execution directory
+if workflow.overwrite_configfiles:
+    configfile_path = workflow.overwrite_configfiles[0]
+else:
+    configfile_path = DEFAULT_CONFIG
+print(f'KAPy configuration file: {configfile_path}')
 
+#Load and validate
+import KAPy
+import os
+
+config=KAPy.getConfig(configfile_path)
+outDirs=config['dirs']
 
 #Generate filename dicts
 wf=KAPy.getWorkflow(config)

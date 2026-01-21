@@ -4,7 +4,7 @@
 
 ## Properties
 
-- **`id`** *(string, required)*: Unique identifier for the period. This can be numeric, but will be treated as a string.
+- **`id`** *(string, required)*: Unique identifier for the period. This can be numeric, but will be treated as a string. Items must be unique.
 - **`name`** *(string, required)*: A longer description of the period. This is typically used in the x-axes of plots, so shouldn't be TOO long!
-- **`start`** *(string, required)*: The start year of the period. The full year is included in the calculation.
-- **`end`** *(string, required)*: The end year of the period. The full year is included in the calculation.
+- **`start`** *(string, required)*: The start year of the period. The full year is included in the calculation. Must match pattern: `^\d{4}$` ([Test](https://regexr.com/?expression=%5E%5Cd%7B4%7D%24)).
+- **`end`** *(string, required)*: The end year of the period. The full year is included in the calculation. Must match pattern: `^\d{4}$` ([Test](https://regexr.com/?expression=%5E%5Cd%7B4%7D%24)).
