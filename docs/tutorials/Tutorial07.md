@@ -44,35 +44,36 @@ Tmax_BA = Tmean_BA − ZBA + DTRBA/2
 ```
 
 ## Detailed Instructions
-Since there there are three stages to follow, create these three folders and name them ```1.First_KAPy```, ```2.Python_bias_correction``` and ```3.Second_KAPy```. In the folder ```1.``` and ```3.```, place the KAPy source code and in folder ```2.```, place the python bas correction file found [here](Tutorial07_files/indicators.tsv). 
+Since there there are three stages to follow, create these three folders and name them ```1.first_KAPy_computation```, ```2.bc_Python_computation``` and ```3.final_KAPy_computation```. In the folder ```1.``` and ```3.```, place the KAPy source code and in folder ```2.```, place the python bas correction file found [here](Tutorial07_files/indicators.tsv). 
+
 ### Stage one
-1. Here, we want to generate the aggrgated files of each model to make them range from historical to end of cenutury. We do this in KAPy using the first rule of the KAPy snakemake primVar. Enter the ```1.First_KAPy``` folder. Place your input files of tas, tmax and tmin of all the models and the reference data in the ```/inputs/``` folder. Instead of copying these files, you can just symbolicaly link ``ln -s```  them from where therey are to avoid having too many duplicates of the same data. 
+1. Here, we want to generate the aggrgated files of each model to make them range from historical to end of cenutury. We do this in KAPy using the first rule of the KAPy snakemake primVar. Enter the ```1.first_KAPy_computation``` folder. Place your input files of tas, tmax and tmin of all the models and the reference data in the ```/inputs/``` folder. Instead of copying these files, you can just symbolicaly link  ```ln -s```  them from where therey are to avoid having too many duplicates of the same data. 
 2. In the ```config/config.csv```, make sure the pickle part is switched off so that you generate the ```.nc``` files instead of the default ```.pkl``` files. The rest of the parts and file are not important at this stage as we are going to force KAPy to only run the first rule which onky generates the primary variables ie aggregating the model files of each model which are time fragmeneted. Thus, here only interested in files generated in placed in ```/outputs/1.variables/```
 3. To check if everything is set correctly set, do a ```dry-run``` of KAPy remembering to force to only check for the first rule .. which you should specify when commanding the dry run:
  
 ```
 snakemake -n primVar
 ```
-If all is well, KAPy will tell you (show you on the screen) what steps it will follow to generate the files you want.
-4. Tf satisfied, then run KAPy specifying the number of cores you want to use (and available) to generate the files and this weill generate and place files into ```/outputs/1.variables/```:
+4. If all is well, KAPy will tell you (show you on the screen) what steps it will follow to generate the files you want. Tf satisfied, then run KAPy specifying the number of cores you want to use (and available) to generate the files and this weill generate and place files into ```/outputs/1.variables/```:
 ```
 snakemake --cores 8 primVar
 ```
-Then leave the ``1.First_KAPy``` folder to prepare for the next stage. 
+5. Then leave the ```1.first_KAPy_computation``` folder to prepare for the next stage. 
 
-2. The calibration methods are defined and configured via `./config/calibration.tsv` which is already available and configured correctly in a default install of KAPy. Open this file in a spreadsheet (e.g. LibreOffice) and have a look. Here you will see that the definition of a calibrated variable called `tas-cal`. This  output variable is based on using `tas` from `CORDEX` as the datasource, and is calibrated against `ERA5` as the reference source, using the period 1981-2010 as the reference. The calibration method is set in the `method`column to `xclim-scaling`, while the `grouping` argument is set to `month`, indicating that we should perform the calibration individually on months.  Note also under `additionalArgs` that we are passing a dict with `kind='+'` to use calibration in the additive mode - this is appropriate for temperature, but a multiplicative model `kind= '*'` would be more appropriate for precipitation. 
+### Stage two
+This stage involves uisng Python outside KAPy to bias correct tmean, tmax and tmin together to ensure logical relationship amongst them is maintained after bias corection i.e ```tmin < tmean <tmax```.
+1. Enter the stage two folder ```2.bc_Python_computation```. Cretae a folder to place the outouts of this stage ```mkdir /processed```.
+2. Make sure the Python code has the correct patrts of the input data and where ro save the outputs. Here, the input data is the output of the first stage. Thus, the path for the input files should point to
+```
+../1.first_KAPy_computation/outputs/1.variables
+```
+3. Then the output path should point to ``` /processed ```. These output files will be used as input of the next stage.
 
-3. Next, we want to be able to use the new variable that we have created, `tas-cal` in generating indicators. A new indicator table can be downloaded from [here](Tutorial06_files/indicators.tsv). Save the file over the top of the old  indicator table `./config/indicators.tsv`, then open the file using a spreadsheet. The table includes the definition of two indicators: `101-nocal` is the annual average of the raw model output temperature `tas`, while `101-scaling` is the annual average of the same data after calibration (as stored in the `tas-cal` variable). 
 
-4. So now we are ready to go. Firstly, let's see how snakemake responds to this new configuration.
-```
-snakemake -n
+### Stage three
+This is the finals stage where KAPy shines to generate indicators and related future statistics linke dto tmin, tmean and tmax.
 
-```
-5. We get a list of what Snakemake wants to do - in particular note the generation of the two versions of indicator 101. Now run the pipeline:
-```
-snakemake --cores 1
-```
+1. 
 
 6. Once the output has been completed, you can see the new set of calibrated variables have appeared in the `calibration`directory  e.g.,
 ```
