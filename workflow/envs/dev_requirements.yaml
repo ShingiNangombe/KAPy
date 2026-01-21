@@ -14,11 +14,16 @@
 #
 # conda env export > dev.yaml
 #
+# An alternative strategy can be to build the full environment first, combining
+# both sets of requirements, clone the full environment, and then uninstall the
+# development packages. This has worked well in situations where solutions
+# cannot be found  for adding the packages below.
+#
 name: KAPy-dev
 channels:
   - bioconda
   - conda-forge
-  - defaults
+  - nodefaults
 dependencies:
   - black   #Linting
   - ipykernel  #Used by vscode to enable interactive debugging
