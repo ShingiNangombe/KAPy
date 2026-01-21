@@ -16,9 +16,9 @@ xr.set_options(display_style="text")
 
 
 # Directories
-DATADIR = '/dmidata/projects/klimaatlas/KAGh/ghana_KAPys/v01/correcting_Tmin_tmax_together/1.first_KAPy_computation/outputs/1.variables/'
-DATADIR1 = '/dmidata/projects/klimaatlas/KAGh/data/ERA5_data/monthly_Africa/'
-OUTDIR = '/dmidata/projects/klimaatlas/KAGh/ghana_KAPys/v01/correcting_Tmin_tmax_together/2.bc_Python_computation/processed/'
+DATADIR = '~/correcting_Tmin_tmax_together/1.first_KAPy_computation/outputs/1.variables/'
+DATADIR1 = '~/ERA5_data/monthly_Africa/'
+OUTDIR = '~/correcting_Tmin_tmax_together/2.bc_Python_computation/processed/'
 
 os.makedirs(OUTDIR, exist_ok=True)
 # ----------------------------
