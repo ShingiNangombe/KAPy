@@ -6,9 +6,9 @@ KAPy is an open-source and flexible framework that can be used to generate clima
 
 Here we describe the basic steps to install and configure KAPy. First, you need to get a copy of the KAPy source code onto the machine where you want to work. This is most easily done using git to clone the latest version of the code directly from the repository:
 ```
-git clone git@github.com:Klimaatlas/KAPy.git
+git clone https://github.com/Klimaatlas/KAPy.git
 ```
-This approach also has the advantage of making it easy to get updates directly into your local folder. If you don't have git installed, you can download a zipped version of the source code directly from the website, here: https://github.com/Klimaatlas/KAPy/releases 
+This approach also has the advantage of making it easy to get updates directly into your local folder. If you don't have git installed, you can download a zipped version of the source code directly from the website, here: [`https://github.com/Klimaatlas/KAPy/releases`](https://github.com/Klimaatlas/KAPy/releases). Note that this approach does not require logging into a GitHub account, and can therefore be used in all cases: as an alternative, cloning via SSH is also possible, and is required if you want to e.g. make pull requests back to the repository. For most users and use cases, and particularly for learning KAPy, the approach given here will suffice.
 
 Next, we need to setup the Python environment containing the packages used by KAPy. Add-on libraries in Python are referred to as "packages" and their installation is maintained by a package manager, of which there are many to choose from (e.g. Anaconda, Conda, Miniconda, Mamba, Micromamba etc), although some, particularly Anaconda, require paid-for licenses in some use-cases. KAPy is developed around packages from the conda-forge and bioconda channels and the example code given here is for the miniforge version of conda - you can download it from https://conda-forge.org/download/ if you don't have it already. KAPy should however work just as well with other package managers. The examples are also for a Linux environment - however, a similar approach will hold if you want to try and get KAPy running in Windows.
 
