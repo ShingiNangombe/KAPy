@@ -42,6 +42,7 @@ def validateConfig(config):
     """
     # Setup debugging
     # config=readConfig("./config/config.yaml")
+    # config=readConfig("./workflow/testing/config.yaml")
 
     # Setup location of validation schemas
     # schemaDir="./workflow/schemas/"
@@ -80,16 +81,16 @@ def validateConfig(config):
             "dictCols": ["additionalArgs"],
             "schema": "derivedVars",
             "optional": True},
-        "calibration": {"listCols": [], 
+        "biasAdjustment": {"listCols": [], 
                         "dictCols": ["additionalArgs"],
-                        "schema": "calibration",
+                        "schema": "biasAdjustment",
                         "optional": True},
         "tertiaryVars": {
             "listCols": ["inputVars", "outputVars"],
             "dictCols": ["additionalArgs"],
             "schema": "derivedVars",
             "optional": True},
-        "indicators": {"listCols": ["seasons","datasets"], 
+        "indicators": {"listCols": ["indicator_codes","variables","seasons","datasets"], 
                        "dictCols": ["additionalArgs"], 
                        "schema": "indicators",
                        "optional": True},
@@ -97,7 +98,7 @@ def validateConfig(config):
     for thisTblKey, theseVals in tabularCfg.items():
         # Load the tablular configuration table (if it  exists)
         thisCfgFile = config["configurationTables"][thisTblKey]
-        if (thisCfgFile =='') & theseVals['optional']:
+        if ((thisCfgFile =='') | (thisCfgFile==None)) & theseVals['optional']:
             continue  #Not using this option
         elif (thisCfgFile =='') & theseVals['optional']:
             raise ValueError(f"'{thisTblKey}' configuration table must be specified.")            
@@ -107,9 +108,15 @@ def validateConfig(config):
                               comment="#",
                               dtype='str',
                               keep_default_na=False)
+        #Drop rows that are disabled
+        if ('enabled' not in thisTbl) & (thisTblKey != "indicators"):
+            raise ValueError(f"Cannot find column 'enabled' in {thisTblKey}' configuration table.")
+        else:
+            enabledRows=thisTbl['enabled']!=""
+            thisTbl=thisTbl[enabledRows]
         # Require a non-zero length
         if len(thisTbl)==0:
-            raise ValueError(f"'{thisTblKey}' configuration table at {thisCfgFile} is empty.")
+            raise ValueError(f"'{thisTblKey}' configuration table at {thisCfgFile} is empty or all rows are disabled.")
         # Load the schema to validate against 
         with open(os.path.join(schemaDir, f"{theseVals['schema']}.schema.json")) as f:
             thisSchema = yaml.safe_load(f)
@@ -133,6 +140,15 @@ def validateConfig(config):
                 thisTbl[col] = [ast.literal_eval(x) for x in thisTbl[col]]
             except (SyntaxError, ValueError) as e:
                 raise ValueError (f"Error occurred in parsing column '{col}' in '{thisCfgFile}' : {e}")
+        # Indicators gets special treatment, where the indicator_codes column is used to make an id
+        if thisTblKey=="indicators":
+            thisTbl['id']=["+".join(rw['indicator_codes']) for idx,rw in thisTbl.iterrows()]
+
+        #id Column needs to be unique
+        duplicated_ids=thisTbl.loc[thisTbl['id'].duplicated(), "id"].unique()
+        if len(duplicated_ids) > 0:
+            raise ValueError(f"Duplicate ids values found in '{thisTblKey}' table: {list(duplicated_ids)}")        
+
         # Force id column to be a string. Set to as the index so it can be used as the key
         thisTbl["id"] = [str(x) for x in thisTbl["id"]]
         thisTbl = thisTbl.set_index("id", drop=False)
@@ -159,23 +175,32 @@ def validateConfig(config):
 
     #Require that units are consistent across a variable
     inputvarDf=pd.DataFrame.from_dict(config["inputs"],orient="index")
-    unitCount=inputvarDf.groupby('varID')['units'].nunique()
+    unitCount=inputvarDf.groupby('varCode')['units'].nunique()
     if any(unitCount>1):
         multiUnits = unitCount[unitCount > 1].index
-        raise ValueError(f"Variable '{multiUnits[0]}' has {unitCount[multiUnits[0]]} different units defined. Please ensure consistency between units in the same varID.")
+        raise ValueError(f"Variable '{multiUnits[0]}' has {unitCount[multiUnits[0]]} different units defined. Please ensure consistency between units in the same varCode.")
 
     # Season selected in the indicator table must be valid
-    # Currently allow only one season per indicator. This needs to be fixed in the future
     indTbl = pd.DataFrame.from_dict(config["indicators"], orient="index")
     validSeasons = list(config["seasons"].keys()) + ["all"]
     for idx,thisrw in indTbl.iterrows():
         for requestSeason in thisrw["seasons"]:
             if not (requestSeason in validSeasons):
                 raise ValueError(f"Unknown season '{requestSeason}' requested for indicator '{thisrw["id"]}'.")
-            
+
+    # Indicators can only take multiple input variables if the statistic type is "custom"
+    for idx, rw in indTbl.iterrows():
+        if (rw['statistic'] != "custom") & (len(rw['variables'])>1):
+                raise ValueError(f"Multiple variables supplied to indicator '{rw["id"]}': in this case, the statistic chosen needs to be 'custom' but is currently '{rw["statistic"]}'.")
+
     # If the temporary directory doesn't exist, create it
     if not os.path.exists(config['dirs']['tempDir']):
         os.makedirs(config['dirs']['tempDir'])
+
+    #Check if the configuration file is valid
+    if config['arealstats']['shapefile'] is not None:
+        if not os.path.exists(config['arealstats']['shapefile']):
+            raise FileNotFoundError(f"Cannot find shapefile declared in config/arealstats/shapefile: '{config['arealstats']['shapefile']}'.")
 
     return config
 

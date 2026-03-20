@@ -1,22 +1,3 @@
-"""
-#Setup for debugging with VS code 
-import os
-print(os.getcwd())
-os.chdir("..")
-import KAPy
-os.chdir("../..")
-config=KAPy.getConfig("./config/config.yaml") 
-config=KAPy.getConfig("./workflow/testing/config.yaml") 
-wf=KAPy.getWorkflow(config)
-asID=list(wf['arealstats'].keys())[0]
-inFile=wf['arealstats'][asID]
-shapefile=config["arealstats"]['shapefile']
-idColumn=config["arealstats"]['idColumn']
-useAreaWeighting=config["arealstats"]['useAreaWeighting']
-tempDir=config['dirs']['tempDir']
-%matplotlib inline
-"""
-
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
@@ -24,14 +5,32 @@ from cdo import Cdo
 import regionmask
 import numpy as np
 
-def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idColumn):
+"""
+#Setup for debugging with VS code 
+import os
+print(os.getcwd())
+os.chdir("..")
+import workflow.KAPy as KAPy
+config=KAPy.getConfig("./workflow/testing/config.yaml") 
+config=KAPy.getConfig("./config/config.yaml") 
+wf=KAPy.getWorkflow(config)
+asID=list(wf['arealstats']['input_dict'].keys())[0]
+inFile=wf['arealstats']['input_dict'][asID]
+shapefile=config["arealstats"]['shapefile']
+useAreaWeighting=config["arealstats"]['useAreaWeighting']
+tempDir=config['dirs']['tempDir']
+%matplotlib inline
+"""
+
+def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile):
     # Generate statistics over an area by applying a polygon mask and averaging
     # Setup xarray
     # Note that we need to use open_dataset here, as the ensemble files have
     # multiple data variables in them
     time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
     thisDat = xr.open_dataset(inFile[0],
-                              decode_times=time_coder)
+                              decode_times=time_coder,
+                              decode_timedelta=False)
 
     #Identify the time / period coordinate first
     if 'time' in thisDat.dims:
@@ -57,7 +56,7 @@ def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idCol
         pxlSize.name="cell_area"
 
     # If we have a shapefile defined, then work with it
-    if shapefile!='':
+    if shapefile is not None:
         #Import shapefile
         shpFile = gpd.read_file(shapefile)
 
@@ -98,7 +97,7 @@ def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idCol
 
             #Output object
             thisOut=pd.concat([wtMeanDf,wtSdDf])
-            thisOut.insert(0,'areaID',thisArea[idColumn] )
+            thisOut.insert(0,'areaID',thisIdx )
             outList += [thisOut]
         dfOut=pd.concat(outList)
 
@@ -112,9 +111,9 @@ def generateArealstats(outFile, inFile, tempDir,useAreaWeighting,shapefile,idCol
         spSdDf=spSd.to_dataframe()
         spSdDf['arealStatistic']='sd'
 
-        # Save files pandas
+        # Save files pandas. Set the areaID to NA
         dfOut = pd.concat([spMeanDf,spSdDf])
-        dfOut.insert(0,'areaID',"all" )
+        dfOut.insert(0,'areaID',"NA" )
         dfOut=dfOut.reset_index()
 
     #Write out date without time for easier handling

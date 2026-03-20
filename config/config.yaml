@@ -19,12 +19,12 @@ configurationTables:
     inputs:  'config/inputs.tsv'
     indicators: 'config/indicators.tsv'
     secondaryVars: ''   
-    calibration: '' 
+    biasAdjustment: '' 
     tertiaryVars: ''  
 dirs:
     primaryVariables: 'outputs/01.primaryVars'
     secondaryVariables: 'outputs/02.secondaryVars'
-    calibration: 'outputs/03.calibration'
+    biasAdjustment: 'outputs/03.biasAdjustment'
     tertiaryVariables: 'outputs/04.tertiaryVars'
     indicators: 'outputs/05.indicators'
     regridded: 'outputs/06.commmon_grid'
@@ -33,15 +33,14 @@ dirs:
     outputs: 'outputs/09.outputs'
     tempDir: 'outputs/tmp'
 outputs:
-    ensembleStatisticsCSV: 'Ensemble_statistics.csv'
-    ensembleMembersCSV: 'Ensemble_members.csv'
-    database: 'KAPy_outputs.sqlite'
+    ensembleStatisticsCSV: 'outputs/09.outputs/Ensemble_statistics.csv'
+    ensembleMembersCSV: 'outputs/09.outputs/Ensemble_members.csv'
+    database: 'outputs/09.outputs/KAPy_outputs.sqlite'
 
 # Configuration options------------------------------------
 arealstats:
     useAreaWeighting: False
-    shapefile: '' 
-    idColumn: ''  
+    shapefile: # leave empty for "none" 
 cutouts:
     method: 'lonlatbox'  #'none'
     xmin: -4
@@ -49,14 +48,11 @@ cutouts:
     ymin: 4
     ymax: 12
 ensembles:
-    upperPercentile: 90
-    centralPercentile: 50
-    lowerPercentile: 10
+    percentiles: [10,50,90]
+    method: "linear"
 outputGrid:
     templateType: 'cdo'
     gridName: 'Ghana025'
     method: 'bilinear'
     path: 'config/griddes.txt'
-processing:
-    picklePrimaryVariables: False
     

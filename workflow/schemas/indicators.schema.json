@@ -4,13 +4,13 @@
   "description": "Configuration of indicators is set through a tab-separated table, with one row per indicator. The available configuration options are described here. All options are required",
   "type": "object",
   "required": [
-    "id",
-    "name",
-    "units",
+    "indicator_codes",
+    "enabled",
+    "description",
     "variables",
     "datasets",
     "seasons",
-    "time_binning",
+    "timeBinning",
     "deltaType",
     "statistic",
     "additionalArgs",
@@ -19,44 +19,32 @@
   ],
   "additionalProperties": false,
   "properties": {
-    "id": {
-      "description": "Identifier for the indicators. Must be unique.",
+    "indicator_codes": {
+      "description": "Codes of the set of indicators to be generated, as a comma-separated list. Each code must be unique. Used to generate a unique id for this row",
       "type": "string",
       "uniqueItems": true
     },
-    "name": {
-      "description": "Name of the indicator.",
-      "type": "string"
+    "enabled": {
+      "description": "Determines whether the row be used in the workflow. A non-empty value indicates not to use that row.",
+      "type": ["string","null"]
     },
-    "units": {
-      "description": "Units of measurement for the indicator.",
+    "description": {
+      "description": "Description of the indicator(s) defined here. Stored in the output database.",
       "type": "string"
     },
     "variables": {
-      "description": "List of input variables required to calculate the indicator. Must be at least one specified.",
-      "oneOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minitems": 1
-          },
-          "minitems": 0
-        }
-      ]
+      "description": "Comma-separater list of input variables required to calculate the indicator. Must be at least one specified.",
+      "type": "string"
     },
     "datasets": {
-      "description": "Comma-separated list of dataset IDs for which the indicator is to be calculated. IDs should match those defined as primary (input), secondary, calibration or tertiary variables. In addition, `all` selects all datasets.",
+      "description": "Comma-separated list of dataset IDs for which the indicator is to be calculated. IDs should match those defined as primary (input), secondary, bias-adjusted or tertiary variables. In addition, `all` selects all datasets.",
       "type": "string"
     },
     "seasons": {
       "description": "Comma-separated lists of season IDs over which the indicator is to be calculated. IDs should match those in the [seasons configuration](seasons.md) table. In addition, `all` selects all seasons.",
       "type": "string"
     },
-    "time_binning": {
+    "timeBinning": {
       "description": "Time bins over which indicators are calculated. In the case of choosing `periods`, the indicator will be calculated for all periods defined in the [periods configuration](periods.md) table. Indicators can also be calculated across a whole year, using the `years`options. Months were previously available, but have been removed.",
       "type": "string",
       "enum": [

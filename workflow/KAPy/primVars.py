@@ -18,7 +18,6 @@ import KAPy.workflow as workflow
 
 # Given a set of input files, create objects that can be worked with
 import xarray as xr
-import pickle
 import sys
 import time
 from cdo import Cdo
@@ -31,28 +30,37 @@ from . import helpers
 from . import workflow
 
 #-----------------------------------------------------------------
-def defaultImport(inFiles,varID,internalVarName ):
+def defaultImport(inFiles,varCode,internalVarName,checks):
 	# Make dataset object using xarray lazy load approach.
-	# Apply a manual sort ensures that the time axis is correct
-	# Use the join="override" argument to handle the case where
-	# there are small numerical differences in the values of the
-	# coordinates - in this case, we take the coordinates from the first file
+	#
+	# Setup	
 	time_coder=xr.coders.CFDatetimeCoder(use_cftime=True)
+	inFiles = sorted(inFiles)  #Helps ensure monotonic time
+
 	try:
 		dsIn =xr.open_mfdataset(inFiles,
-								combine='nested',
+								combine='by_coords' if checks=="all" else "nested",
+								concat_dim=None if checks=="all" else "time",
 								decode_times=time_coder, 
-								join="override", 
-								chunks={'time':256},
-								concat_dim='time')
+								join="exact" if checks=="all" else "override" , 
+								compat="no_conflicts" if checks=="all" else "override",
+								coords="minimal",
+								data_vars="minimal",
+								preprocess=lambda ds: ds[[internalVarName]])
+
 	except Exception as e:
-		raise RuntimeError(f"Opening following NetCDF files failed: '{inFiles}'\n{e}")
+		raise RuntimeError(f"Opening following NetCDF files:\n '{inFiles}'\n failed with error:\n{e}")	
+	
+	# Apply some checkes on the results (if requested)
+	if checks=="all":
+		if not dsIn.indexes["time"].is_monotonic_increasing:
+			raise ValueError(f"Time coordinate is not monotonic in file set: '{inFiles}'.")
+		if dsIn.indexes["time"].has_duplicates:
+			raise ValueError(f"Duplicate timestamps detected file set: '{inFiles}'.")
 
-	dsIn=dsIn.sortby('time')
-
-	# Select the desired variable and rename it
-	ds = dsIn.rename({internalVarName: varID})
-	da = ds[varID]  # Convert to dataarray
+	# Select the desired variable to give a and rename to the variable code
+	da = dsIn[internalVarName]
+	da.name= varCode
 
 	# Drop degenerate dimensions. If any remain, throw an error
 	da = da.squeeze(drop=True)
@@ -77,7 +85,7 @@ def defaultImport(inFiles,varID,internalVarName ):
 
 
 #-----------------------------------------------------------------
-def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID,**kwargs):
+def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varCode,**kwargs):
 	"""
 	Apply cutout based on lonlat
 
@@ -97,7 +105,7 @@ def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID,**kwargs):
 		Minimum coordinate in the y direction
 	ymax : _type_
 		Maximum coordinate in the y direction
-	varID : _type_
+	varCode : _type_
 		Name of the variable ID contained in the dataset
 	kwargs:
 		Absorb any extra arguments
@@ -112,7 +120,7 @@ def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID,**kwargs):
 	cdo = Cdo()
 	cutoutMask = cdo.sellonlatbox(xmin, xmax, ymin, ymax,
 								  input=firstTS,
-								  returnXArray=varID)
+								  returnXArray=varCode)
 	
 	# Apply masking to data array object
 	da=thisDat.where(cutoutMask.notnull(),drop=True)
@@ -122,24 +130,28 @@ def cutout_lonlat(thisDat, xmin,xmax,ymin,ymax,varID,**kwargs):
 
 
 #-----------------------------------------------------------------	
-def buildPrimVar(outFile, inFiles,varID,internalVarName,importScriptPath,importScriptFunction,
-				 units, picklePrimaryVariables,cutoutArgs,**kwargs):
+def buildPrimVar(outFile, inFiles,varCode,internalVarName,checks,importScriptPath,importScriptFunction,
+				 units, cutoutArgs,**kwargs):
 	# If an import function is defined, use that. Otherwise use the default
 	if importScriptPath=='':
 		#Use default import
 		da= defaultImport(inFiles=inFiles, 
-					varID=varID,
-					internalVarName=internalVarName)
+					varCode=varCode,
+					internalVarName=internalVarName,
+					checks=checks)
 		#Apply cutout functionality
 		if cutoutArgs["method"] == "lonlatbox":
-			da=cutout_lonlat(da,**cutoutArgs,varID=varID)
+			da=cutout_lonlat(da,**cutoutArgs,varCode=varCode)
 
 	else:
 		#Use a custom import
 		imptFn=helpers.getExternalFunction(importScriptPath, importScriptFunction)
-		da = imptFn(inFiles,varID=varID,internalVarName=internalVarName,
-			  		units=units, picklePrimaryVariables=picklePrimaryVariables,
-					cutoutArgs=cutoutArgs)  
+		da = imptFn(inFiles,
+			  varCode=varCode,
+			  internalVarName=internalVarName,
+			  units=units,
+			  checks=checks,
+			  cutoutArgs=cutoutArgs)  
 
 	# Unit handling -----------------------------
 	# Note that this is enforced here, even if it is already handled in the custom
@@ -162,28 +174,24 @@ def buildPrimVar(outFile, inFiles,varID,internalVarName,importScriptPath,importS
 		da=xclim.core.units.convert_units_to(da,units)
 	
 	# Check that the unit choice is sane
-
+	
 	# Output --------------------
-	# Write the dataset object to disk, depending on the configuration
-	if picklePrimaryVariables:
-		with open(outFile[0],'wb') as f:
-			pickle.dump(da,f,protocol=-1)
-	else:
-		#We also apply a little trick here, by forcing everything to be stored as
-		#netcdf "float" types as well.
-		daFloat=da.astype(np.float32)
-		#Set chunking
-		defaultChunks=[256,16,16]
-		chunkThisWay=[min(defaultChunks[i],daFloat.shape[i]) for i in range(0,3)]
-		
-		#Now use the chunking scheme as the basis for writing out the encoding
-		try:
-			daFloat.to_netcdf(outFile[0],
-						encoding={varID:{'chunksizes':chunkThisWay,
-								'zlib': True,
-								'complevel':1}})
-		except Exception as e:
-			raise RuntimeError(f"Writing NetCDF file '{outFile[0]}' to disk failed with error: {e}") 
+	#We also apply a little trick here, by forcing everything to be stored as
+	#netcdf "float" types as well.
+	daFloat=da.astype(np.float32)
+
+	#Set chunking
+	defaultChunks=[256,16,16]
+	chunkThisWay=[min(defaultChunks[i],daFloat.shape[i]) for i in range(0,3)]
+	
+	#Now use the chunking scheme as the basis for writing out the encoding
+	try:
+		daFloat.to_netcdf(outFile[0],
+					encoding={varCode:{'chunksizes':chunkThisWay,
+							'zlib': True,
+							'complevel':1}})
+	except Exception as e:
+		raise RuntimeError(f"Writing NetCDF file '{outFile[0]}' to disk failed with error: {e}") 
 
 
 
@@ -199,12 +207,11 @@ def VariableOverview(config):
 	#  - Calculate differences
 	wfFiles=[ g for k in wf['primVars'].keys() for g in wf['primVars'][k]]
 	ncFiles=glob.glob(config['dirs']['variables']+"/**/*.nc",recursive=True)
-	pklFiles=glob.glob(config['dirs']['variables']+"/**/*.pkl",recursive=True)
-	tbl= pd.DataFrame(sorted(set(wfFiles+ncFiles+pklFiles)),columns=["path"])
+	tbl= pd.DataFrame(sorted(set(wfFiles+ncFiles)),columns=["path"])
 	tbl['filename']=[os.path.basename(f) for f in tbl["path"]]
-	tbl["varID"] = tbl["filename"].str.extract("^([^_]+)_.*$")
-	tbl["datasetID"] = tbl["filename"].str.extract("^[^_]+_([^_]+)_.*$")
-	tbl["gridID"] = tbl["filename"].str.extract("^[^_]+_[^_]+_([^_]+)_.*$")
+	tbl["var"] = tbl["filename"].str.extract("^([^_]+)_.*$")
+	tbl["dataset"] = tbl["filename"].str.extract("^[^_]+_([^_]+)_.*$")
+	tbl["grid"] = tbl["filename"].str.extract("^[^_]+_[^_]+_([^_]+)_.*$")
 	tbl["expt"] = tbl["filename"].str.extract("^[^_]+_[^_]+_[^_]+_([^_.]+).*$")
 	tbl["ensemble_member"] = tbl["filename"].str.extract("^[^_]+_[^_]+_[^_]+_[^_]+_(.+).nc(?:.pkl)?$")
 	tbl['in_workflow']=[f in wfFiles for f in tbl["path"]]
@@ -260,7 +267,7 @@ def VariableOverview(config):
 	cols = out.columns.tolist()
 	reordered_cols = cols[2:] + cols[:2]
 	out = out[reordered_cols]
-	out=out.sort_values(by=['varID','datasetID','gridID',"expt","ensemble_member"])
+	out=out.sort_values(by=['var','dataset','grid',"expt","ensemble_member"])
 	outFname=os.path.join(config['dirs']['variables'],"Variable_overview.csv")
 	print(f"\nWriting output to '{outFname}'.\n")
 	out.to_csv(outFname,index=False)

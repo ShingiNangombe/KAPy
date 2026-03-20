@@ -9,8 +9,7 @@
         "arealstats",
         "dirs",
         "outputs",
-        "ensembles",
-        "processing"
+        "ensembles"
     ],
     "additionalProperties": true,
     "properties": {
@@ -19,7 +18,7 @@
             "required": [
                 "inputs",
                 "secondaryVars",
-                "calibration",
+                "biasAdjustment",
                 "tertiaryVars",
                 "indicators",
                 "periods",
@@ -32,20 +31,20 @@
                     "type": "string"
                 },
                 "secondaryVars": {
-                    "description": "Path to configuration table for secondary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '', no secondary variables will be generated",
-                    "type": "string"
+                    "description": "Path to configuration table for secondary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '' or undefined, no secondary variables will be generated",
+                    "type": ["string","null"]
                 },
-                "calibration": {
-                    "description": "Path to calibration configuration table, relative to working directory. See [calibration.md](calibration.md) for more detail. Optional - if set to '', no calibration will be performed",
-                    "type": "string"
+                "biasAdjustment": {
+                    "description": "Path to bias adjustment configuration table, relative to working directory. See [biasAdjustment.md](biasAdjustment.md) for more detail. Optional - if set to '' or undefined, no bias adjustment will be performed",
+                    "type": ["string","null"]
                 },
                 "tertiaryVars": {
-                    "description": "Path to configuration table for tertiary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '', no tertiary variables will be generated",
-                    "type": "string"
+                    "description": "Path to configuration table for tertiary variables, relative to working directory. See [derivedVars.md](derivedVars.md) for more details. Optional - if set to '' or undefined, no tertiary variables will be generated",
+                    "type": ["string","null"]
                 },
                 "indicators": {
-                    "description": "Path to indicator configuration table, relative to working directory. See [indicators.md](indicators.md) for more detail. Optional - if set to '', no indicators will be generated",
-                    "type": "string"
+                    "description": "Path to indicator configuration table, relative to working directory. See [indicators.md](indicators.md) for more detail. Optional - if set to '' or undefined, no indicators will be generated",
+                    "type": ["string","null"]
                 },
                 "periods": {
                     "description": "Path to period configuration table, relative to working directory. See [periods.md](periods.md) for more detail. Required table",
@@ -63,7 +62,7 @@
             "required": [
                 "primaryVariables",
                 "secondaryVariables",
-                "calibration",
+                "biasAdjustment",
                 "tertiaryVariables",
                 "indicators",
                 "regridded",
@@ -82,8 +81,8 @@
                     "description": "Directory for storing secondary variables.",
                     "type": "string"
                 },
-                "calibration": {
-                    "description": "Directory for storing calibrated variables.",
+                "biasAdjustment": {
+                    "description": "Directory for storing bias-adjusted variables.",
                     "type": "string"
                 },
                 "tertiaryVariables": {
@@ -135,7 +134,7 @@
                     "type": "string"
                 },
                 "database": {
-                    "description": "Path to SQLite database merging all outputs from the pipeline.",
+                    "description": "Path to SQLite database / Geopackage merging all outputs from the pipeline.",
                     "type": "string"
                 }
             }
@@ -143,8 +142,7 @@
         "arealstats": {
             "required": [
                 "useAreaWeighting",
-                "shapefile",
-                "idColumn"
+                "shapefile"
             ],
             "additionalProperties": false,
             "type": "object",
@@ -155,10 +153,6 @@
                 },
                 "shapefile": {
                     "description": "Path to shapefile to be used for defining areas. When the path is undefined, averages are calculated across the entire domain. The path should point to the .shp file.",
-                    "type": ["string","null"]
-                },
-                "idColumn": {
-                    "description": "Name of the column in the above shapefile to be used as a unique identifier code for the area.",
                     "type": ["string","null"]
                 }
             }
@@ -221,29 +215,43 @@
             ]
         },
         "ensembles": {
-            "description": "Specify the percentiles [0-100] calculated from the ensemble. We allow three values, corresponding to the upper and lower confidence limits, and the central value.",
+            "description": "Parameters to control the calculation of ensemble statistics.",
             "type": "object",
             "required": [
-                "upperPercentile",
-                "centralPercentile",
-                "lowerPercentile"
+                "percentiles",
+                "method"
             ],
             "additionalProperties": false,
             "properties": {
-                "upperPercentile": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "exclusiveMaximum": 100
+                "percentiles": {
+                    "description": "Specify the percentiles [0-100] calculated from the ensemble. We allow any number of values. Values of 0 and 100 indicate the maximum / minimum values in the ensemble.",
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
                 },
-                "centralPercentile": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "exclusiveMaximum": 100
-                },
-                "lowerPercentile": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "exclusiveMaximum": 100
+                "method": {
+                    "description": "Specifies the interpolation method to use when the desired quantile lies between two data points. Default value is 'linear'. String is supplied to the `method` argument of `xarray.dataset.quantile()` - see the documentation there for details.",                    
+                    "type": "string",
+                    "enum": [
+                        "inverted_cdf",
+                        "averaged_inverted_cdf",
+                        "closest_observation",
+                        "interpolated_inverted_cdf",
+                        "hazen",
+                        "weibull",
+                        "linear",
+                        "median_unbiased",
+                        "normal_unbiased",
+                        "lower",
+                        "higher",
+                        "midpoint",
+                        "nearest"
+                    ]
                 }
             }
         },
@@ -286,19 +294,6 @@
                 "path": {
                     "description": "Path to the file to be used as a template, in the case of a `file` templateType, or the cdo grid descriptor, in the case of `cdo` templateType.",
                     "type": "string"
-                }
-            }
-        }, 
-        "processing": {
-            "required": [
-                "picklePrimaryVariables"
-            ],
-            "additionalProperties": false,
-            "type": "object",
-            "properties": {
-                "picklePrimaryVariables": {
-                    "description": "Should the the primary variables be stored as 'pickled' xarray objects (`True`) or written out to disk as NetCDF files (`False`).",
-                    "type": "boolean"
                 }
             }
         }

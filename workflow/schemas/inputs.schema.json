@@ -5,15 +5,17 @@
   "type": "object",
   "required": [
     "id",
-    "varID", 
-    "datasetID", 
-    "gridID",
+    "enabled",
+    "varCode", 
+    "datasetCode", 
+    "gridCode",
     "path", 
     "internalVarName", 
     "units",
     "experimentField", 
     "ensMemberFields",
-    "commonExperimentID", 
+    "commonExperiment",
+    "checks", 
     "importScriptPath",
     "importScriptFunction"
   ],
@@ -21,31 +23,36 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "A unique id for this dataset.",
+      "description": "A unique id for this processing group. Cannot contain a space",
+      "pattern": "^[^ ]+$",            
       "uniqueItems": true
     },
-    "datasetID": {
-      "type": "string",
-      "pattern": "^[^ ]+$",
-      "description": "The ID of the dataset e.g CORDEX, ERA5. Need not be unique. Is used to group related variables from the same data source together further in the analysis (e.g. tas and pr from ERA5). Must not contain a space."
+    "enabled": {
+      "description": "Determines whether the row be used in the workflow. A non-empty value indicates not to use that row.",
+      "type": ["string","null"]
     },
-    "varID": {
+    "datasetCode": {
       "type": "string",
       "pattern": "^[^ ]+$",
-      "description": "The ID of the variable contained in this dataset. While there is no enforcement of naming conventions in KAPy, the variable names should anyway be standardised across the entire configuration and across input datasets. For example, both ERA5 and CORDEX provide surface temperature, but with different internal variable names in the input files - to ensure that they can be matched together, they should both be assigned the varName `tas`. Must not contain a space."
+      "description": "A code for the dataset e.g CORDEX, ERA5. Need not be unique. Is used to group related variables from the same data source together further in the analysis (e.g. tas and pr from ERA5). Must not contain a space."
+    },
+    "varCode": {
+      "type": "string",
+      "pattern": "^[^ ]+$",
+      "description": "A code of the variable contained in this dataset. While there is no enforcement of naming conventions in KAPy, the variable names should anyway be standardised across the entire configuration and across input datasets. For example, both ERA5 and CORDEX provide surface temperature, but with different internal variable names in the input files - to ensure that they can be matched together, they should both be assigned the varCode `tas`. Must not contain a space."
     },
     "units": {
       "type": ["string","null"],
       "description": "The units that the input variable is to be converted to for further processing. KAPy takes an active approach to units, requiring them to be declared and consistent throughout the configuration process. Three scenarios are possible 1. If the input dataset does not have units defined, a units attribute will be created and set to this value - in this case, this argument must be defined and will throw an error if undefined.  2. If the input dataset has units, but this argument is empty, the units will be unchanged. 3. If the input dataset has units that are not the same as the specified argument, the input dataset will be converted to the new units using `xclim.core.units.convert_units_to()` - if this function fails, KAPy will also fail. Checks are also applied to ensure that the units are consistent across variables e.g. that all `tasmax` variables have the same units. For more information, see the xclim documentation regarding unit handling https://xclim.readthedocs.io/en/stable/notebooks/units.html."
     },
-    "gridID": {
+    "gridCode": {
       "type": "string",
       "pattern": "^[^ ]+$",
-      "description": "Identifier for the grid that the data set is on. The idnetifier need not be unique, and most commonly will be duplicated across multiple input sources. Must not contain a space."
+      "description": "Identifier for the grid that the data set is on. The identifier need not be unique, and most commonly will be duplicated across multiple input sources. Must not contain a space."
     },
     "path": {
       "type": "string",
-      "description": "Path to input files, relative to the working directory. Glob-matching (e.g. `./resources/CORDEX/tas_*`) can be used when the input covers multiple files and/or there are multiple variable types in the same directory."
+      "description": "Specification of the input files. Four cases are considered. 1. A string describing  a path using glob-matching (e.g. `./resources/CORDEX/tas_*`) can be used to specify multiples files. 2. A path to a single netcdf file. 3. A path to a text file containing a list of input files, one file per line. 4. A path to a text file containing outputs from the md5sum command in unix, consisting of an md5 checksum followed by the file path, one file per line. Note that all paths need to be specified either relative to the working directory, or as absolute paths in the filesystem. See also the tutorials for more information and examples on how this can work, and a discussion of the merits of each approach."
     },
     "internalVarName": {
       "type": "string",
@@ -63,7 +70,7 @@
       "description": "Number of the field in the filename to be used for forming dataseries based on scenarios e.g. for the file `tas_AFR-22_NCC-NorESM1-M_rcp85_r1i1p1_CLMcom-KIT-CCLM5-0-15_v1_day_20360101-20401231.nc`, the fourth field (`rcp85`) contains the emissions scenario code, and this parameter would then be set to 4. If omitted, the experiment code is set to `noExpt`. 1-based indexing is assumed.",
       "default": null
     },
-    "commonExperimentID": {
+    "commonExperiment": {
       "type": ["string","null"],
       "description": "Many climate experiments, such as CMIP, involve splitting time into separate experiments e.g. a `historical` experiment that runs to 2005 and then the `rcp26` and `rcp85` scenario experiments that start from 2006. This field provides the name for the experiment that is common to all others (in this case `historical`) All (other) values of the `experimentField` will be concatenated with this experiment to produce one contiguous *dataseries*. Omission of this parameter will disable this feature, and all experiments will be processed individually.",
       "default": null
@@ -72,6 +79,13 @@
       "type": ["string","null"],
       "description": "Comma-separated list of integers representing the fields to join together to make the *ensemble member identifier*. Including the grid descriptor in this configuration is often a good idea, when the same model can be run on two different grids. If not specified, the ensemble member identifier will be set to `noEnsID`. 1-based indexing is assumed.",
       "default": null
+    },
+    "checks": {
+      "type": "string",
+      "description": "Determine the degree of checking that should to be applied upon importing files. There are three elements to the checking procedure: 1). ensure that all dimensions except time match between input files (governed by the `join='exact'` and `compat='no_conflicts'` arguments to `xarray.open_mfdataset()`) 2) ensure that the time dimension is monotonic (governed by the `is_monotonic_increasing` property of an xarray time index and 3) ensure that there are no duplicated time variables (governed by the `has_duplicates` property of an xarray time index. For more information, please see documentation for these methods. The `all` argument applies all of these checks, while `none` applies none of them. While it may be tempting to ignore this step and disable all checks, it is recommended to set it to all, and investigate files that fail checks, before they propigate further into the processing chain, where they may cause unexpected problems.",
+      "enum": [
+        "all",
+        "none"]
     },
     "importScriptPath": {
       "type": ["string", "null"],

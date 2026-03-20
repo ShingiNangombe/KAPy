@@ -5,6 +5,7 @@
     "type": "object",
     "required": [
         "id",
+        "enabled",
         "processorType",
         "processorPath",
         "inputVars",
@@ -16,9 +17,14 @@
     "additionalProperties": false,
     "properties": {
         "id": {
-            "description": "Code by which to refer to the variable e.g. `tas`, `SPI`, `pr` etc",
+            "description": "Code by which to refer to the variable e.g. `tas`, `SPI`, `pr` etc. Cannont contain a space.",
             "type": "string",
+            "pattern": "^[^ ]+$",            
             "uniqueItems": true
+        },
+        "enabled": {
+            "description": "Determines whether the row be used in the workflow. A non-empty value indicates not to use that row.",
+            "type": ["string","null"]
         },
         "inputVars": {
             "description": "Comma-separated list of input variables to be used in generating this new variable.",
