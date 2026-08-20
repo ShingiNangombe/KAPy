@@ -54,9 +54,10 @@ dependencies:
   - yaml
   - zarr
   # ----- Dev packages below this line ----------
-  - black   #Linting
+  - pre-commit   #Linting etc
   - ipykernel  #Used by vscode to enable interactive debugging
   - jsonschema2md #Convert jsonschema to markdown documentation
   - nc-time-axis   #Plotting of cftime-axes in matplotlib
+  - pip
   - pip:
     - snakemake-logger-plugin-snkmt  

@@ -9,33 +9,21 @@
 # snakemake --configfile workflow/testing/config.yaml ... 
 
 
-configurationTables:
+configuration_tables:
     inputs:  'workflow/testing/inputs.tsv'
     indicators: 'workflow/testing/indicators.tsv'
-    secondaryVars: 'workflow/testing/secondaryVars.tsv'
-    biasAdjustment: 'workflow/testing/biasAdjustment.tsv'
-    tertiaryVars: 'workflow/testing/tertiaryVars.tsv'
+    secondary_variables: 'workflow/testing/secondaryVars.tsv'
+    bias_adjustment: 'workflow/testing/biasAdjustment.tsv'
+    tertiary_variables: 'workflow/testing/tertiaryVars.tsv'
     periods:  'workflow/testing/periods.tsv'
     seasons: 'workflow/testing/seasons.tsv'
-dirs:
-    primaryVariables: 'testing/01.primaryVars'
-    secondaryVariables: 'testing/02.secondaryVars'
-    biasAdjustment: 'testing/03.biasAdjustment'
-    tertiaryVariables: 'testing/04.tertiaryVars'
-    indicators: 'testing/05.indicators'
-    regridded: 'testing/06.commmon_grid'
-    ensstats: 'testing/07.ensstats'
-    arealstats: 'testing/08.areal_statistics'
-    outputs: 'testing/09.outputs'
-    tempDir: 'testing/tmp'
-outputs:
-    ensembleStatisticsCSV: 'testing/09.outputs/Ensemble_statistics.csv'
-    ensembleMembersCSV: 'testing/09.outputs/Ensemble_members.csv'
-    database: 'testing/09.outputs/KAPy_outputs.sqlite'
+output_directory: "testing"
 
 # Configuration options------------------------------------
-arealstats:
-    useAreaWeighting: True
+areal_statistics:
+    ensemble_areal_statistics: True
+    member_areal_statistics: False
+    use_area_weighting: True
     shapefile: 'docs/tutorials/Tutorial05_files/Ghana_regions.shp'
 cutouts:
     method: 'lonlatbox'  #'none'
@@ -44,11 +32,13 @@ cutouts:
     ymin: 4
     ymax: 12
 ensembles:
-    percentiles: [10,50,90]
+    percentiles: [0,50,100]  #Use full data range due to small ensemble size.
     method: "linear"
-outputGrid:
-    templateType: 'cdo'
-    gridName: 'Ghana025'
+output_grid:
+    template_type: 'cdo'
+    grid_name: 'Ghana025'
     method: 'bilinear'
-    path: 'workflow/testing/griddes.txt'
-    
+    path: 'config/griddes.txt'
+
+# Advanced options-------------
+dask_resources:  workflow/testing/dask.tsv
